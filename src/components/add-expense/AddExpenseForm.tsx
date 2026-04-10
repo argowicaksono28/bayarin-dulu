@@ -7,7 +7,7 @@ import { z } from "zod"
 import { toast } from "sonner"
 import { format } from "date-fns"
 import { enUS as enLocale } from "date-fns/locale"
-import { CalendarIcon, Calculator, Receipt, ChevronDown } from "lucide-react"
+import { CalendarIcon, Calculator, Receipt, ChevronDown, Loader2 } from "lucide-react"
 import {
   Form,
   FormControl,
@@ -383,9 +383,14 @@ export function AddExpenseForm({ groupId, onSuccess }: Props) {
         <Button
           type="submit"
           className="w-full"
-          disabled={!form.formState.isValid || !splitResult.isValid}
+          disabled={!form.formState.isValid || !splitResult.isValid || form.formState.isSubmitting}
         >
-          {watchedAmount > 0
+          {form.formState.isSubmitting ? (
+            <span className="flex items-center gap-2">
+              <Loader2 className="animate-spin h-4 w-4" />
+              Saving…
+            </span>
+          ) : watchedAmount > 0
             ? `Save — ${formatIDR(totalAmount)}`
             : "Save Expense"}
         </Button>

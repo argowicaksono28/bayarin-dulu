@@ -36,6 +36,13 @@ export interface Group {
   myBalance: number
 }
 
+export interface UserProfile {
+  id: UserId
+  name: string
+  initials: string
+  avatarUrl: string | null
+}
+
 export interface Expense {
   id: ExpenseId
   groupId: GroupId
@@ -45,11 +52,12 @@ export interface Expense {
   tax: number
   serviceCharge: number
   paidBy: UserId
+  paidByProfile?: UserProfile | null
   splitType: SplitType
   splits: Record<UserId, number>
   category: string
   notes?: string
-  createdAt: Date
+  createdAt: Date | string
   createdBy: UserId
 }
 
@@ -79,11 +87,13 @@ export interface Activity {
   groupId: GroupId
   type: ActivityType
   actorId: UserId
+  actor?: UserProfile | null
   targetUserId?: UserId
+  target?: UserProfile | null
   expenseId?: ExpenseId
   amount?: number
   description: string
-  createdAt: Date
+  createdAt: Date | string
 }
 
 export interface Notification {

@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { toast } from "sonner"
-import { LogOut, Edit2, Phone, Mail } from "lucide-react"
+import { LogOut, Edit2, Phone, Mail, Loader2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 
@@ -146,7 +146,12 @@ export function ProfileSheet({ open, onOpenChange }: Props) {
                   onClick={handleSave}
                   disabled={saving}
                 >
-                  {saving ? "Saving…" : "Save"}
+                  {saving ? (
+                    <span className="flex items-center gap-2">
+                      <Loader2 className="animate-spin h-4 w-4" />
+                      Saving…
+                    </span>
+                  ) : "Save"}
                 </Button>
               </div>
             </div>

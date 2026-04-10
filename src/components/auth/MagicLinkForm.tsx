@@ -16,7 +16,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { createClient } from "@/lib/supabase/client"
-import { Mail } from "lucide-react"
+import { Mail, Loader2 } from "lucide-react"
 
 const schema = z.object({
   email: z.string().email("Invalid email"),
@@ -84,7 +84,12 @@ export function MagicLinkForm() {
           </FormItem>
         )} />
         <Button type="submit" className="w-full bg-primary hover:bg-primary/90" disabled={loading}>
-          {loading ? "Sending…" : "Send Magic Link"}
+          {loading ? (
+            <span className="flex items-center gap-2">
+              <Loader2 className="animate-spin h-4 w-4" />
+              Sending…
+            </span>
+          ) : "Send Magic Link"}
         </Button>
       </form>
     </Form>

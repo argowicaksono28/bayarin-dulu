@@ -1,5 +1,4 @@
 import { formatIDR, formatDate } from "@/lib/formatters"
-import { getUserById, CURRENT_USER_ID } from "@/lib/mock-data"
 import type { Expense } from "@/types"
 import { cn } from "@/lib/utils"
 
@@ -15,8 +14,7 @@ interface Props {
 }
 
 export function ExpenseItem({ expense }: Props) {
-  const payer = getUserById(expense.paidBy)
-  const isPaidByMe = expense.paidBy === CURRENT_USER_ID
+  const payerName = expense.paidByProfile?.name ?? "Unknown"
 
   return (
     <div className="flex items-center gap-4 px-4 py-4 hover:bg-white/5 transition-colors rounded-lg">
@@ -29,7 +27,7 @@ export function ExpenseItem({ expense }: Props) {
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-foreground truncate">{expense.description}</p>
         <p className="text-xs text-muted-foreground mt-0.5">
-          Paid by {isPaidByMe ? "you" : payer.name} · {formatDate(expense.createdAt)}
+          Paid by {payerName} · {formatDate(expense.createdAt)}
         </p>
       </div>
 

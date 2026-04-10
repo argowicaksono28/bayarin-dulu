@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
+import { Loader2 } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 
 const schema = z.object({
@@ -69,7 +70,12 @@ export function SignInForm() {
           </FormItem>
         )} />
         <Button type="submit" className="w-full bg-primary hover:bg-primary/90" disabled={loading}>
-          {loading ? "Signing in…" : "Sign In"}
+          {loading ? (
+            <span className="flex items-center gap-2">
+              <Loader2 className="animate-spin h-4 w-4" />
+              Signing in…
+            </span>
+          ) : "Sign In"}
         </Button>
       </form>
     </Form>

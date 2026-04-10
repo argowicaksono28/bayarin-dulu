@@ -1,6 +1,5 @@
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { formatRelative, formatIDR } from "@/lib/formatters"
-import { getUserById } from "@/lib/mock-data"
 import type { Activity } from "@/types"
 import { Receipt, UserPlus, CheckCircle, Edit, Trash2 } from "lucide-react"
 
@@ -17,7 +16,8 @@ interface Props {
 }
 
 export function ActivityItem({ activity }: Props) {
-  const actor = getUserById(activity.actorId)
+  const actorName = activity.actor?.name ?? "Someone"
+  const actorInitials = activity.actor?.initials ?? "?"
   const config = typeConfig[activity.type]
   const Icon = config.icon
 
@@ -27,7 +27,10 @@ export function ActivityItem({ activity }: Props) {
         <Icon className={`h-4 w-4 ${config.color}`} />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm">{activity.description}</p>
+        <p className="text-sm">
+          <span className="font-medium">{actorName}</span>{" "}
+          {activity.description}
+        </p>
         {activity.amount && (
           <p className="text-xs font-medium text-muted-foreground mt-0.5">
             {formatIDR(activity.amount)}
@@ -39,7 +42,7 @@ export function ActivityItem({ activity }: Props) {
       </div>
       <Avatar className="h-6 w-6 shrink-0">
         <AvatarFallback className="text-[10px] bg-muted">
-          {actor.initials}
+          {actorInitials}
         </AvatarFallback>
       </Avatar>
     </div>

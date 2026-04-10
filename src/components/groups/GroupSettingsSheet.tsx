@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
-import { Settings, UserPlus, Trash2 } from "lucide-react"
+import { Settings, UserPlus, Trash2, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import type { Group } from "@/types"
 
@@ -22,13 +22,16 @@ interface Props {
 export function GroupSettingsSheet({ group }: Props) {
   const [open, setOpen] = useState(false)
   const [name, setName] = useState(group.name)
+  const [loading, setLoading] = useState(false)
 
   async function handleSave() {
+    setLoading(true)
     const res = await fetch(`/api/groups/${group.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name }),
     })
+    setLoading(false)
     if (res.ok) {
       toast.success("Group settings saved")
       setOpen(false)
@@ -74,9 +77,14 @@ export function GroupSettingsSheet({ group }: Props) {
             <Button
               className="w-full bg-primary hover:bg-primary/90"
               onClick={handleSave}
-              disabled={!name.trim() || name === group.name}
+              disabled={!name.trim() || name === group.name || loading}
             >
-              Save Changes
+              {loading ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="animate-spin h-4 w-4" />
+                  Saving…
+                </span>
+              ) : "Save Changes"}
             </Button>
 
             <Separator className="bg-border/40" />

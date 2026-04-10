@@ -16,7 +16,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { createClient } from "@/lib/supabase/client"
-import { Mail } from "lucide-react"
+import { Mail, Loader2 } from "lucide-react"
 
 const schema = z
   .object({
@@ -115,7 +115,12 @@ export function SignUpForm() {
           </FormItem>
         )} />
         <Button type="submit" className="w-full bg-primary hover:bg-primary/90" disabled={loading}>
-          {loading ? "Creating account…" : "Create Account"}
+          {loading ? (
+            <span className="flex items-center gap-2">
+              <Loader2 className="animate-spin h-4 w-4" />
+              Creating account…
+            </span>
+          ) : "Create Account"}
         </Button>
       </form>
     </Form>
