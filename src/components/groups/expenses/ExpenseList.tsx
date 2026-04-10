@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { Expense } from "@/types"
-import { CATEGORY_OPTIONS } from "@/lib/mock-data"
+import { CATEGORY_OPTIONS } from "@/lib/constants"
 import { ExpenseItem } from "./ExpenseItem"
 import { ExpenseListSkeleton } from "./ExpenseListSkeleton"
 import { EmptyExpenseState } from "./EmptyExpenseState"

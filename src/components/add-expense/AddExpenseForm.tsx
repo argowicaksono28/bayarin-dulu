@@ -30,7 +30,7 @@ import {
 } from "@/components/ui/sheet"
 import { cn } from "@/lib/utils"
 import { formatIDR } from "@/lib/formatters"
-import { CATEGORY_OPTIONS, EXPENSE_SUGGESTIONS } from "@/lib/mock-data"
+import { CATEGORY_OPTIONS, EXPENSE_SUGGESTIONS } from "@/lib/constants"
 import { computeSplits } from "@/lib/split-utils"
 import type { SplitType, User } from "@/types"
 import { SplitTypeSelector } from "./SplitTypeSelector"
