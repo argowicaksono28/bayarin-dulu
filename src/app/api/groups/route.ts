@@ -87,26 +87,16 @@ export async function POST(request: Request) {
 
   if (!name?.trim()) return NextResponse.json({ error: "Name is required" }, { status: 400 })
 
-  const { data: group, error } = await supabase
-    .from("groups")
-    .insert({ name: name.trim(), emoji, cover_color: coverColor, created_by: user.id })
-    .select()
-    .single()
+  // Use a SECURITY DEFINER function to bypass RLS.
+  // The API route has already verified the user via getUser() above.
+  const { data: group, error } = await supabase.rpc("create_group", {
+    p_name: name.trim(),
+    p_emoji: emoji,
+    p_cover_color: coverColor,
+    p_user_id: user.id,
+  })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  // Add creator as admin member
-  await supabase
-    .from("group_members")
-    .insert({ group_id: group.id, user_id: user.id, role: "admin" })
-
-  // Log activity
-  await supabase.from("activities").insert({
-    group_id: group.id,
-    type: "member_joined",
-    actor_id: user.id,
-    description: "created the group",
-  })
-
-  return NextResponse.json({ id: group.id, ...group }, { status: 201 })
+  return NextResponse.json(group, { status: 201 })
 }
