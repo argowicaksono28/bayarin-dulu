@@ -1,11 +1,11 @@
 -- ──────────────────────────────────────────────────────────────
--- Bayarin Dulu — Initial Schema
+-- Bayarin Dulu — Initial Schema (idempotent)
 -- ──────────────────────────────────────────────────────────────
 
 create extension if not exists "uuid-ossp";
 
 -- ── Profiles (extends auth.users) ────────────────────────────
-create table profiles (
+create table if not exists profiles (
   id         uuid primary key references auth.users on delete cascade,
   name       text not null,
   initials   text not null generated always as (
@@ -28,17 +28,19 @@ begin
     new.id,
     coalesce(new.raw_user_meta_data->>'full_name', split_part(new.email, '@', 1)),
     new.raw_user_meta_data->>'phone'
-  );
+  )
+  on conflict (id) do nothing;
   return new;
 end;
 $$;
 
+drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure handle_new_user();
 
 -- ── Groups ───────────────────────────────────────────────────
-create table groups (
+create table if not exists groups (
   id          uuid primary key default uuid_generate_v4(),
   name        text not null,
   emoji       text not null default '🎉',
@@ -49,7 +51,7 @@ create table groups (
 );
 
 -- ── Group Members ─────────────────────────────────────────────
-create table group_members (
+create table if not exists group_members (
   group_id  uuid references groups(id) on delete cascade,
   user_id   uuid references profiles(id) on delete cascade,
   role      text not null default 'member' check (role in ('admin', 'member')),
@@ -58,11 +60,11 @@ create table group_members (
 );
 
 -- ── Expenses ──────────────────────────────────────────────────
-create table expenses (
+create table if not exists expenses (
   id                    uuid primary key default uuid_generate_v4(),
   group_id              uuid references groups(id) on delete cascade not null,
   description           text not null,
-  amount                bigint not null,          -- IDR, no decimals
+  amount                bigint not null,
   base_amount           bigint not null,
   tax_percent           numeric(5, 2) default 0,
   service_charge_percent numeric(5, 2) default 0,
@@ -76,7 +78,7 @@ create table expenses (
 );
 
 -- ── Expense Splits ────────────────────────────────────────────
-create table expense_splits (
+create table if not exists expense_splits (
   expense_id uuid references expenses(id) on delete cascade,
   user_id    uuid references profiles(id) on delete cascade,
   amount     bigint not null,
@@ -84,7 +86,7 @@ create table expense_splits (
 );
 
 -- ── Settlements ───────────────────────────────────────────────
-create table settlements (
+create table if not exists settlements (
   id           uuid primary key default uuid_generate_v4(),
   group_id     uuid references groups(id) on delete cascade not null,
   from_user_id uuid references profiles(id) not null,
@@ -95,7 +97,7 @@ create table settlements (
 );
 
 -- ── Activities ────────────────────────────────────────────────
-create table activities (
+create table if not exists activities (
   id             uuid primary key default uuid_generate_v4(),
   group_id       uuid references groups(id) on delete cascade not null,
   type           text not null
@@ -109,7 +111,7 @@ create table activities (
 );
 
 -- ── Notifications ─────────────────────────────────────────────
-create table notifications (
+create table if not exists notifications (
   id         uuid primary key default uuid_generate_v4(),
   user_id    uuid references profiles(id) on delete cascade not null,
   type       text not null
@@ -135,12 +137,42 @@ alter table settlements    enable row level security;
 alter table activities     enable row level security;
 alter table notifications  enable row level security;
 
--- Profiles: own profile readable/writable; others readable (for group views)
-create policy "profiles: read all" on profiles for select using (true);
+-- Drop existing policies before recreating (idempotent)
+drop policy if exists "profiles: read all"   on profiles;
+drop policy if exists "profiles: own insert" on profiles;
+drop policy if exists "profiles: own update" on profiles;
+
+drop policy if exists "groups: member read"        on groups;
+drop policy if exists "groups: authenticated insert" on groups;
+drop policy if exists "groups: admin update"       on groups;
+
+drop policy if exists "group_members: member read"       on group_members;
+drop policy if exists "group_members: insert self"       on group_members;
+drop policy if exists "group_members: admin insert others" on group_members;
+
+drop policy if exists "expenses: member read"   on expenses;
+drop policy if exists "expenses: member insert" on expenses;
+drop policy if exists "expenses: member update" on expenses;
+drop policy if exists "expenses: member delete" on expenses;
+
+drop policy if exists "expense_splits: member read"   on expense_splits;
+drop policy if exists "expense_splits: member insert" on expense_splits;
+
+drop policy if exists "settlements: member read"   on settlements;
+drop policy if exists "settlements: member insert" on settlements;
+
+drop policy if exists "activities: member read"   on activities;
+drop policy if exists "activities: member insert" on activities;
+
+drop policy if exists "notifications: own read"   on notifications;
+drop policy if exists "notifications: own update" on notifications;
+
+-- Profiles
+create policy "profiles: read all"   on profiles for select using (true);
 create policy "profiles: own insert" on profiles for insert with check (auth.uid() = id);
 create policy "profiles: own update" on profiles for update using (auth.uid() = id);
 
--- Groups: visible to members only
+-- Groups
 create policy "groups: member read" on groups for select
   using (exists (select 1 from group_members where group_id = id and user_id = auth.uid()));
 create policy "groups: authenticated insert" on groups for insert
@@ -193,14 +225,13 @@ create policy "activities: member insert" on activities for insert
   with check (exists (select 1 from group_members where group_id = group_id and user_id = auth.uid()));
 
 -- Notifications
-create policy "notifications: own read" on notifications for select using (user_id = auth.uid());
+create policy "notifications: own read"   on notifications for select using (user_id = auth.uid());
 create policy "notifications: own update" on notifications for update using (user_id = auth.uid());
 
 -- ──────────────────────────────────────────────────────────────
--- Computed views (for dashboard totals)
+-- Computed views
 -- ──────────────────────────────────────────────────────────────
 
--- Net balances per group per user pair (computed from expense splits)
 create or replace view group_balances as
 select
   e.group_id,
