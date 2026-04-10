@@ -1,5 +1,4 @@
 import { formatRelative } from "@/lib/formatters"
-import { getUserById } from "@/lib/mock-data"
 import type { Notification } from "@/types"
 import { cn } from "@/lib/utils"
 import { Bell, CreditCard, Users, DollarSign } from "lucide-react"
@@ -17,13 +16,7 @@ interface Props {
 }
 
 export function NotificationItem({ notification, onRead }: Props) {
-  const Icon = icons[notification.type]
-  let actor: { initials: string; name: string } = { initials: "?", name: "Unknown" }
-  try {
-    actor = getUserById(notification.actorId)
-  } catch {
-    // actor not found
-  }
+  const Icon = icons[notification.type] ?? Bell
 
   return (
     <button

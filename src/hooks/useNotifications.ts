@@ -21,6 +21,7 @@ export function useNotifications() {
               isRead: n.is_read,
               groupId: n.group_id,
               actorId: n.actor_id,
+              actor: n.actor ?? null,
               createdAt: n.created_at,
             }))
           )

@@ -104,7 +104,8 @@ export interface Notification {
   isRead: boolean
   groupId?: GroupId
   actorId: UserId
-  createdAt: Date
+  actor?: UserProfile | null
+  createdAt: Date | string
 }
 
 export interface SplitResult {
