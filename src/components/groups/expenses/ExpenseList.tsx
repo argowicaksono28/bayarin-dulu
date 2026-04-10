@@ -179,9 +179,14 @@ export function ExpenseList({ groupId, onAddExpense }: Props) {
           groupId={groupId}
           open={!!selectedExpense}
           onOpenChange={(open) => { if (!open) setSelectedExpense(null) }}
-          onUpdated={(updated) => {
-            setExpenses((prev) => prev?.map((e) => e.id === updated.id ? updated : e) ?? null)
+          onUpdated={() => {
             setSelectedExpense(null)
+            // Refetch to get fresh data including updated paidByProfile
+            setIsLoading(true)
+            fetch(`/api/groups/${groupId}/expenses`)
+              .then((r) => r.json())
+              .then((data) => { setExpenses(Array.isArray(data) ? data : []); setIsLoading(false) })
+              .catch(() => setIsLoading(false))
           }}
           onDeleted={(id) => {
             setExpenses((prev) => prev?.filter((e) => e.id !== id) ?? null)

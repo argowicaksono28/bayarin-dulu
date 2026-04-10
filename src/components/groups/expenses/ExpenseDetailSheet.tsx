@@ -8,22 +8,21 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { toast } from "sonner"
 import { formatIDR, formatDate } from "@/lib/formatters"
-import { CATEGORY_OPTIONS } from "@/lib/constants"
 import { cn } from "@/lib/utils"
 import type { Expense } from "@/types"
-import { Trash2, Loader2, Pencil } from "lucide-react"
+import { Trash2, Loader2, Pencil, ChevronLeft } from "lucide-react"
+import { AddExpenseForm } from "@/components/add-expense/AddExpenseForm"
 
 interface Props {
   expense: Expense
   groupId: string
   open: boolean
   onOpenChange: (open: boolean) => void
-  onUpdated: (expense: Expense) => void
+  onUpdated: () => void
   onDeleted: (expenseId: string) => void
 }
 
@@ -35,36 +34,14 @@ export function ExpenseDetailSheet({
   onUpdated,
   onDeleted,
 }: Props) {
-  const [editing, setEditing] = useState(false)
-  const [description, setDescription] = useState(expense.description)
-  const [category, setCategory] = useState(expense.category)
-  const [saving, setSaving] = useState(false)
+  const [mode, setMode] = useState<"view" | "edit">("view")
   const [deleting, setDeleting] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
 
   function handleClose() {
-    setEditing(false)
+    setMode("view")
     setConfirmDelete(false)
     onOpenChange(false)
-  }
-
-  async function handleSave() {
-    if (!description.trim()) return
-    setSaving(true)
-    const res = await fetch(`/api/groups/${groupId}/expenses/${expense.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ description: description.trim(), category }),
-    })
-    setSaving(false)
-    if (!res.ok) {
-      const data = await res.json()
-      toast.error(data.error ?? "Failed to update expense")
-      return
-    }
-    toast.success("Expense updated")
-    setEditing(false)
-    onUpdated({ ...expense, description: description.trim(), category })
   }
 
   async function handleDelete() {
@@ -89,15 +66,25 @@ export function ExpenseDetailSheet({
 
   return (
     <Sheet open={open} onOpenChange={handleClose}>
-      <SheetContent side="bottom" className="rounded-t-2xl bg-card border-border/50 pb-8">
-        <SheetHeader className="pb-4">
-          <SheetTitle>Expense Details</SheetTitle>
+      <SheetContent side="bottom" className="rounded-t-2xl bg-card border-border/50 h-[92vh] p-0 flex flex-col">
+        <SheetHeader className="px-4 pt-4 pb-3 shrink-0">
+          <div className="flex items-center gap-2">
+            {mode === "edit" && (
+              <button
+                onClick={() => setMode("view")}
+                className="text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </button>
+            )}
+            <SheetTitle>{mode === "edit" ? "Edit Expense" : "Expense Details"}</SheetTitle>
+          </div>
         </SheetHeader>
 
-        <div className="space-y-5">
-          {!editing ? (
-            /* View mode */
-            <>
+        <ScrollArea className="flex-1 px-4 pb-8">
+          {mode === "view" ? (
+            <div className="space-y-5 pb-4">
+              {/* Detail card */}
               <div className="flex items-center gap-4 p-4 rounded-xl bg-muted/30 border border-border/40">
                 <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center text-2xl shrink-0">
                   {expense.category}
@@ -107,12 +94,12 @@ export function ExpenseDetailSheet({
                   <p className="text-xs text-muted-foreground mt-0.5">
                     Paid by {expense.paidByProfile?.name ?? "Unknown"} · {formatDate(expense.createdAt)}
                   </p>
+                  <p className="text-xs text-muted-foreground mt-0.5 capitalize">
+                    Split: {expense.splitType}
+                  </p>
                 </div>
                 <div className="text-right shrink-0">
                   <p className="text-lg font-bold text-foreground">{formatIDR(expense.amount)}</p>
-                  <span className="text-[10px] font-medium px-2 py-0.5 rounded bg-primary/15 text-primary">
-                    {expense.splitType}
-                  </span>
                 </div>
               </div>
 
@@ -120,11 +107,13 @@ export function ExpenseDetailSheet({
                 <p className="text-sm text-muted-foreground px-1">📝 {expense.notes}</p>
               )}
 
-              <div className="flex gap-3 pt-2">
+              <Separator className="bg-border/40" />
+
+              <div className="flex gap-3 pb-4">
                 <Button
                   variant="outline"
                   className="flex-1 gap-2 border-border/50"
-                  onClick={() => setEditing(true)}
+                  onClick={() => { setMode("edit"); setConfirmDelete(false) }}
                 >
                   <Pencil className="h-4 w-4" />
                   Edit
@@ -132,7 +121,7 @@ export function ExpenseDetailSheet({
                 <Button
                   variant="outline"
                   className={cn(
-                    "flex-1 gap-2 border-border/50",
+                    "flex-1 gap-2 border-border/50 transition-colors",
                     confirmDelete
                       ? "bg-destructive text-destructive-foreground border-destructive hover:bg-destructive/90"
                       : "text-destructive hover:bg-destructive/10 hover:border-destructive"
@@ -148,73 +137,31 @@ export function ExpenseDetailSheet({
                   {confirmDelete ? "Tap again to confirm" : "Delete"}
                 </Button>
               </div>
-            </>
+            </div>
           ) : (
-            /* Edit mode */
-            <>
-              <div className="space-y-2">
-                <Label className="text-sm text-muted-foreground">Description</Label>
-                <Input
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  className="bg-muted/50 border-border/50"
-                  autoFocus
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-sm text-muted-foreground">Category</Label>
-                <div className="grid grid-cols-5 gap-2">
-                  {CATEGORY_OPTIONS.map(({ emoji, label }) => (
-                    <button
-                      key={emoji}
-                      type="button"
-                      onClick={() => setCategory(emoji)}
-                      className={cn(
-                        "flex flex-col items-center gap-1 p-2 rounded-lg border text-center transition-colors",
-                        category === emoji
-                          ? "border-primary bg-primary/10"
-                          : "border-border/40 hover:bg-muted"
-                      )}
-                      title={label}
-                    >
-                      <span className="text-xl">{emoji}</span>
-                      <span className="text-[9px] text-muted-foreground truncate w-full">{label}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <Separator className="bg-border/40" />
-
-              <div className="flex gap-3">
-                <Button
-                  variant="outline"
-                  className="flex-1 border-border/50"
-                  onClick={() => {
-                    setEditing(false)
-                    setDescription(expense.description)
-                    setCategory(expense.category)
-                  }}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  className="flex-1 bg-primary hover:bg-primary/90"
-                  onClick={handleSave}
-                  disabled={saving || !description.trim()}
-                >
-                  {saving ? (
-                    <span className="flex items-center gap-2">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Saving…
-                    </span>
-                  ) : "Save Changes"}
-                </Button>
-              </div>
-            </>
+            <div className="pb-4">
+              <AddExpenseForm
+                groupId={groupId}
+                initialValues={{
+                  expenseId: expense.id,
+                  description: expense.description,
+                  amount: expense.baseAmount ?? expense.amount,
+                  tax: expense.tax ?? 0,
+                  serviceCharge: expense.serviceCharge ?? 0,
+                  paidBy: expense.paidBy,
+                  splitType: expense.splitType,
+                  splits: expense.splits ?? {},
+                  category: expense.category,
+                  notes: expense.notes,
+                }}
+                onSuccess={() => {
+                  setMode("view")
+                  onUpdated()
+                }}
+              />
+            </div>
           )}
-        </div>
+        </ScrollArea>
       </SheetContent>
     </Sheet>
   )

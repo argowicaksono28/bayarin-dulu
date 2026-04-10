@@ -7,7 +7,7 @@ import { z } from "zod"
 import { toast } from "sonner"
 import { format } from "date-fns"
 import { enUS as enLocale } from "date-fns/locale"
-import { CalendarIcon, Calculator, Receipt, ChevronDown, Loader2 } from "lucide-react"
+import { CalendarIcon, Calculator, Receipt, Loader2 } from "lucide-react"
 import {
   Form,
   FormControl,
@@ -49,29 +49,43 @@ const schema = z.object({
 
 type Values = z.infer<typeof schema>
 
+interface InitialValues {
+  expenseId: string
+  description: string
+  amount: number        // base amount (before tax/service)
+  tax: number
+  serviceCharge: number
+  paidBy: string
+  splitType: SplitType
+  splits: Record<string, number>
+  category: string
+  notes?: string
+}
+
 interface Props {
   groupId: string
   onSuccess: () => void
+  /** When provided, form operates in edit mode */
+  initialValues?: InitialValues
 }
 
-export function AddExpenseForm({ groupId, onSuccess }: Props) {
+export function AddExpenseForm({ groupId, onSuccess, initialValues }: Props) {
+  const isEdit = !!initialValues
   const [members, setMembers] = useState<User[]>([])
   const [currentUserId, setCurrentUserId] = useState<string>("")
 
-  const [splitType, setSplitType] = useState<SplitType>("equal")
-  const [splitInputs, setSplitInputs] = useState<Record<string, number>>({})
-  const [tax, setTax] = useState(0)
-  const [serviceCharge, setServiceCharge] = useState(0)
+  const [splitType, setSplitType] = useState<SplitType>(initialValues?.splitType ?? "equal")
+  const [splitInputs, setSplitInputs] = useState<Record<string, number>>(initialValues?.splits ?? {})
+  const [tax, setTax] = useState(initialValues?.tax ?? 0)
+  const [serviceCharge, setServiceCharge] = useState(initialValues?.serviceCharge ?? 0)
   const [showCalc, setShowCalc] = useState(false)
   const [showSuggestions, setShowSuggestions] = useState(false)
 
   useEffect(() => {
-    // Get current user id
     const supabase = createClient()
     supabase.auth.getUser().then(({ data }) => {
       if (data.user) setCurrentUserId(data.user.id)
     })
-    // Fetch real group members
     fetch(`/api/groups/${groupId}/members`)
       .then((r) => r.json())
       .then((data) => {
@@ -83,16 +97,15 @@ export function AddExpenseForm({ groupId, onSuccess }: Props) {
   const form = useForm<Values>({
     resolver: zodResolver(schema),
     defaultValues: {
-      description: "",
-      amount: 0,
-      paidBy: currentUserId,
+      description: initialValues?.description ?? "",
+      amount: initialValues?.amount ?? 0,
+      paidBy: initialValues?.paidBy ?? currentUserId,
       date: new Date(),
-      category: "🍽️",
-      notes: "",
+      category: initialValues?.category ?? "🍽️",
+      notes: initialValues?.notes ?? "",
     },
   })
 
-  // Update paidBy default when currentUserId loads
   useEffect(() => {
     if (currentUserId && !form.getValues("paidBy")) {
       form.setValue("paidBy", currentUserId)
@@ -119,28 +132,46 @@ export function AddExpenseForm({ groupId, onSuccess }: Props) {
       toast.error(`Invalid split: ${splitResult.errorMessage}`)
       return
     }
-    const res = await fetch(`/api/groups/${groupId}/expenses`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        description: values.description,
-        amount: totalAmount,
-        baseAmount: values.amount,
-        tax,
-        serviceCharge,
-        paidBy: values.paidBy,
-        splitType,
-        splits: splitResult.splits,
-        category: values.category,
-        notes: values.notes,
-      }),
-    })
-    const data = await res.json()
-    if (!res.ok) {
-      toast.error(data.error ?? "Failed to add expense")
-      return
+
+    const payload = {
+      description: values.description,
+      amount: totalAmount,
+      baseAmount: values.amount,
+      tax,
+      serviceCharge,
+      paidBy: values.paidBy,
+      splitType,
+      splits: splitResult.splits,
+      category: values.category,
+      notes: values.notes,
     }
-    toast.success(`"${values.description}" added!`)
+
+    if (isEdit) {
+      const res = await fetch(`/api/groups/${groupId}/expenses/${initialValues.expenseId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        toast.error(data.error ?? "Failed to update expense")
+        return
+      }
+      toast.success(`"${values.description}" updated!`)
+    } else {
+      const res = await fetch(`/api/groups/${groupId}/expenses`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        toast.error(data.error ?? "Failed to add expense")
+        return
+      }
+      toast.success(`"${values.description}" added!`)
+    }
+
     onSuccess()
   }
 
@@ -374,11 +405,12 @@ export function AddExpenseForm({ groupId, onSuccess }: Props) {
           )}
         />
 
-        {/* Receipt upload (UI only) */}
-        <Button type="button" variant="outline" className="w-full gap-2 border-border/50 hover:bg-muted text-muted-foreground">
-          <Receipt className="h-4 w-4" />
-          Upload Receipt (coming soon)
-        </Button>
+        {!isEdit && (
+          <Button type="button" variant="outline" className="w-full gap-2 border-border/50 hover:bg-muted text-muted-foreground">
+            <Receipt className="h-4 w-4" />
+            Upload Receipt (coming soon)
+          </Button>
+        )}
 
         {/* Submit */}
         <Button
@@ -391,9 +423,11 @@ export function AddExpenseForm({ groupId, onSuccess }: Props) {
               <Loader2 className="animate-spin h-4 w-4" />
               Saving…
             </span>
-          ) : watchedAmount > 0
-            ? `Save — ${formatIDR(totalAmount)}`
-            : "Save Expense"}
+          ) : isEdit
+            ? `Save Changes — ${formatIDR(totalAmount)}`
+            : watchedAmount > 0
+              ? `Save — ${formatIDR(totalAmount)}`
+              : "Save Expense"}
         </Button>
 
         {!splitResult.isValid && splitResult.errorMessage && (
