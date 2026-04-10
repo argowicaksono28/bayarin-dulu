@@ -7,11 +7,25 @@ import { Home, User, Plus } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { CreateGroupSheet } from "@/components/groups/CreateGroupSheet"
 import { ProfileSheet } from "@/components/profile/ProfileSheet"
+import { AddExpenseButton } from "@/components/add-expense/AddExpenseButton"
 
 export function BottomNav() {
   const pathname = usePathname()
   const [createOpen, setCreateOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
+  const [addExpenseOpen, setAddExpenseOpen] = useState(false)
+
+  // Detect if we're on a group detail page
+  const groupMatch = pathname.match(/^\/groups\/([^/]+)/)
+  const groupId = groupMatch?.[1] ?? null
+
+  function handlePlusClick() {
+    if (groupId) {
+      setAddExpenseOpen(true)
+    } else {
+      setCreateOpen(true)
+    }
+  }
 
   return (
     <>
@@ -24,7 +38,7 @@ export function BottomNav() {
             href="/dashboard"
             className={cn(
               "flex flex-1 flex-col items-center justify-center gap-1 text-xs transition-colors",
-              pathname === "/dashboard" || pathname.startsWith("/groups")
+              pathname === "/dashboard"
                 ? "text-primary"
                 : "text-muted-foreground hover:text-foreground"
             )}
@@ -33,16 +47,16 @@ export function BottomNav() {
             <span>Home</span>
           </Link>
 
-          {/* Center — + pill button */}
+          {/* Center — context-aware + button */}
           <button
-            onClick={() => setCreateOpen(true)}
+            onClick={handlePlusClick}
             className="flex items-center justify-center h-12 w-20 rounded-full bg-primary shadow-lg text-primary-foreground hover:bg-primary/90 active:scale-95 transition-all mx-1"
-            aria-label="Create new group"
+            aria-label={groupId ? "Add expense" : "Create new group"}
           >
             <Plus className="h-6 w-6" />
           </button>
 
-          {/* Right — Profile (opens sheet, not /auth) */}
+          {/* Right — Profile */}
           <button
             onClick={() => setProfileOpen(true)}
             className="flex flex-1 flex-col items-center justify-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
@@ -55,6 +69,13 @@ export function BottomNav() {
 
       <CreateGroupSheet open={createOpen} onOpenChange={setCreateOpen} />
       <ProfileSheet open={profileOpen} onOpenChange={setProfileOpen} />
+      {groupId && (
+        <AddExpenseButton
+          groupId={groupId}
+          open={addExpenseOpen}
+          onOpenChange={setAddExpenseOpen}
+        />
+      )}
     </>
   )
 }
