@@ -8,7 +8,7 @@ import { ExpenseListSkeleton } from "./ExpenseListSkeleton"
 import { EmptyExpenseState } from "./EmptyExpenseState"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Search, SlidersHorizontal, X } from "lucide-react"
+import { Search, SlidersHorizontal, X, Plus } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import {
   Popover,
@@ -55,7 +55,7 @@ export function ExpenseList({ groupId, onAddExpense }: Props) {
 
   return (
     <div className="space-y-3 px-4">
-      {/* Search + filter row */}
+      {/* Search + filter + add row */}
       <div className="flex gap-2">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -125,6 +125,17 @@ export function ExpenseList({ groupId, onAddExpense }: Props) {
             </div>
           </PopoverContent>
         </Popover>
+
+        {/* Desktop-only Add Expense button */}
+        {onAddExpense && (
+          <Button
+            onClick={onAddExpense}
+            className="hidden lg:flex gap-1.5 h-9 bg-primary hover:bg-primary/90 text-primary-foreground shrink-0"
+          >
+            <Plus className="h-4 w-4" />
+            Add Expense
+          </Button>
+        )}
       </div>
 
       {/* Active filter badge */}

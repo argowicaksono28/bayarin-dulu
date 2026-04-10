@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ExpenseList } from "./expenses/ExpenseList"
 import { BalanceList } from "./balances/BalanceList"
@@ -11,9 +12,10 @@ interface Props {
 }
 
 export function GroupDetailTabs({ groupId }: Props) {
+  const [addExpenseOpen, setAddExpenseOpen] = useState(false)
+
   return (
     <Tabs defaultValue="expenses" className="w-full">
-      {/* Pill-style tab bar — matches reference exactly */}
       <div className="px-4 lg:px-0 mb-4">
         <TabsList className="w-full h-10 bg-card border border-border/50 rounded-lg p-1 grid grid-cols-3">
           <TabsTrigger
@@ -38,8 +40,15 @@ export function GroupDetailTabs({ groupId }: Props) {
       </div>
 
       <TabsContent value="expenses" className="mt-0">
-        <ExpenseList groupId={groupId} />
-        <AddExpenseButton groupId={groupId} />
+        <ExpenseList
+          groupId={groupId}
+          onAddExpense={() => setAddExpenseOpen(true)}
+        />
+        <AddExpenseButton
+          groupId={groupId}
+          open={addExpenseOpen}
+          onOpenChange={setAddExpenseOpen}
+        />
       </TabsContent>
 
       <TabsContent value="balances" className="mt-0">
