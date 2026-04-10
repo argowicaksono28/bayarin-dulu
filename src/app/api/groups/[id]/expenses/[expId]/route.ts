@@ -5,7 +5,7 @@ export async function PATCH(
   request: Request,
   { params }: { params: { id: string; expId: string } }
 ) {
-  const supabase = createClient()
+  const supabase = createClient(request as any)
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
@@ -56,10 +56,10 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _: Request,
+  request: Request,
   { params }: { params: { id: string; expId: string } }
 ) {
-  const supabase = createClient()
+  const supabase = createClient(request as any)
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 

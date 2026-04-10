@@ -22,9 +22,11 @@ interface Props {
 export function CreateGroupSheet({ open, onOpenChange }: Props) {
   const [name, setName] = useState("")
   const [emoji, setEmoji] = useState("🎉")
+  const [loading, setLoading] = useState(false)
 
   async function handleCreate() {
-    if (!name.trim()) return
+    if (!name.trim() || loading) return
+    setLoading(true)
     const res = await fetch("/api/groups", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -33,13 +35,13 @@ export function CreateGroupSheet({ open, onOpenChange }: Props) {
     const data = await res.json()
     if (!res.ok) {
       toast.error(data.error ?? "Failed to create group")
+      setLoading(false)
       return
     }
     toast.success(`Group "${name}" created!`)
     setName("")
     setEmoji("🎉")
     onOpenChange(false)
-    // Navigate to the new group
     window.location.href = `/groups/${data.id}`
   }
 
@@ -99,9 +101,19 @@ export function CreateGroupSheet({ open, onOpenChange }: Props) {
           <Button
             className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
             onClick={handleCreate}
-            disabled={!name.trim()}
+            disabled={!name.trim() || loading}
           >
-            Create Group
+            {loading ? (
+              <span className="flex items-center gap-2">
+                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z" />
+                </svg>
+                Creating…
+              </span>
+            ) : (
+              "Create Group"
+            )}
           </Button>
         </div>
       </SheetContent>

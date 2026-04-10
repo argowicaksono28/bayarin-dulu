@@ -1,8 +1,8 @@
 import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 
-export async function GET() {
-  const supabase = createClient()
+export async function GET(request: Request) {
+  const supabase = createClient(request as any)
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
@@ -78,7 +78,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const supabase = createClient()
+  const supabase = createClient(request as any)
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
