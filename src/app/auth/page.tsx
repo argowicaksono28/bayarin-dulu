@@ -20,7 +20,7 @@ function GoogleButton() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/dashboard`,
+        redirectTo: `${window.location.origin}/auth/callback`,
       },
     })
     if (error) {
@@ -51,7 +51,7 @@ function GoogleButton() {
 
 export default function AuthPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-background">
+    <div className="min-h-screen flex items-center justify-center p-4">
       <Card className="w-full max-w-sm border border-border/50 shadow-2xl bg-card rounded-2xl">
         <CardContent className="px-6 py-8 space-y-5">
           {/* Logo + Title */}

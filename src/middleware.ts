@@ -29,6 +29,11 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl
 
+  // Allow the OAuth callback route through without auth check
+  if (pathname === "/auth/callback") {
+    return supabaseResponse
+  }
+
   // Redirect unauthenticated users to /auth
   if (!user && pathname !== "/auth") {
     return NextResponse.redirect(new URL("/auth", request.url))

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Home } from "lucide-react"
@@ -14,9 +14,27 @@ const navItems = [
   { href: "/dashboard", icon: Home, label: "Dashboard" },
 ]
 
+interface UserProfile {
+  name: string
+  initials: string
+  email: string
+}
+
 export function Sidebar() {
   const pathname = usePathname()
   const [profileSheetOpen, setProfileSheetOpen] = useState(false)
+  const [user, setUser] = useState<UserProfile | null>(null)
+
+  useEffect(() => {
+    fetch("/api/auth/me")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.id) {
+          setUser({ name: data.name, initials: data.initials, email: data.email })
+        }
+      })
+      .catch(() => {})
+  }, [])
 
   return (
     <aside className="hidden lg:flex flex-col w-48 shrink-0 h-screen sticky top-0 bg-sidebar border-r border-border/50 relative overflow-hidden">
@@ -62,11 +80,17 @@ export function Sidebar() {
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/5 transition-colors text-left"
         >
           <Avatar className="h-8 w-8 shrink-0">
-            <AvatarFallback className="text-xs bg-primary text-primary-foreground font-bold">BS</AvatarFallback>
+            <AvatarFallback className="text-xs bg-primary text-primary-foreground font-bold">
+              {user?.initials ?? "…"}
+            </AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium truncate text-foreground">Budi Santoso</p>
-            <p className="text-[11px] text-muted-foreground truncate">budi@example.com</p>
+            <p className="text-sm font-medium truncate text-foreground">
+              {user?.name ?? "Loading…"}
+            </p>
+            <p className="text-[11px] text-muted-foreground truncate">
+              {user?.email ?? ""}
+            </p>
           </div>
         </button>
 
