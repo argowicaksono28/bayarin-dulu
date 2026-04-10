@@ -1,6 +1,7 @@
 import { formatIDR, formatDate } from "@/lib/formatters"
 import type { Expense } from "@/types"
 import { cn } from "@/lib/utils"
+import { ChevronRight } from "lucide-react"
 
 const splitTypeLabels: Record<string, string> = {
   equal: "equal",
@@ -11,14 +12,18 @@ const splitTypeLabels: Record<string, string> = {
 
 interface Props {
   expense: Expense
+  onClick: () => void
 }
 
-export function ExpenseItem({ expense }: Props) {
+export function ExpenseItem({ expense, onClick }: Props) {
   const payerName = expense.paidByProfile?.name ?? "Unknown"
 
   return (
-    <div className="flex items-center gap-4 px-4 py-4 hover:bg-white/5 transition-colors rounded-lg">
-      {/* Category emoji in a subtle circle */}
+    <button
+      onClick={onClick}
+      className="w-full flex items-center gap-4 px-4 py-4 hover:bg-white/5 transition-colors text-left"
+    >
+      {/* Category emoji */}
       <div className="h-9 w-9 rounded-full bg-muted flex items-center justify-center text-base shrink-0">
         {expense.category}
       </div>
@@ -31,16 +36,19 @@ export function ExpenseItem({ expense }: Props) {
         </p>
       </div>
 
-      {/* Amount + badge */}
-      <div className="text-right shrink-0">
-        <p className="text-sm font-semibold text-foreground">{formatIDR(expense.amount)}</p>
-        <span className={cn(
-          "inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-medium",
-          "bg-primary/15 text-primary"
-        )}>
-          {splitTypeLabels[expense.splitType]}
-        </span>
+      {/* Amount + badge + chevron */}
+      <div className="flex items-center gap-2 shrink-0">
+        <div className="text-right">
+          <p className="text-sm font-semibold text-foreground">{formatIDR(expense.amount)}</p>
+          <span className={cn(
+            "inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-medium",
+            "bg-primary/15 text-primary"
+          )}>
+            {splitTypeLabels[expense.splitType]}
+          </span>
+        </div>
+        <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
       </div>
-    </div>
+    </button>
   )
 }

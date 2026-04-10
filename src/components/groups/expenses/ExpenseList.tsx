@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { Expense } from "@/types"
 import { CATEGORY_OPTIONS } from "@/lib/constants"
 import { ExpenseItem } from "./ExpenseItem"
+import { ExpenseDetailSheet } from "./ExpenseDetailSheet"
 import { ExpenseListSkeleton } from "./ExpenseListSkeleton"
 import { EmptyExpenseState } from "./EmptyExpenseState"
 import { Input } from "@/components/ui/input"
@@ -22,12 +23,14 @@ interface Props {
   onAddExpense?: () => void
 }
 
+
 export function ExpenseList({ groupId, onAddExpense }: Props) {
   const [expenses, setExpenses] = useState<Expense[] | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [search, setSearch] = useState("")
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [filterOpen, setFilterOpen] = useState(false)
+  const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null)
 
   useEffect(() => {
     setIsLoading(true)
@@ -159,10 +162,31 @@ export function ExpenseList({ groupId, onAddExpense }: Props) {
         <Card className="border border-border/50 bg-card rounded-xl overflow-hidden">
           <div className="divide-y divide-border/40">
             {filtered.map((expense) => (
-              <ExpenseItem key={expense.id} expense={expense} />
+              <ExpenseItem
+                key={expense.id}
+                expense={expense}
+                onClick={() => setSelectedExpense(expense)}
+              />
             ))}
           </div>
         </Card>
+      )}
+
+      {/* Expense detail / edit / delete sheet */}
+      {selectedExpense && (
+        <ExpenseDetailSheet
+          expense={selectedExpense}
+          groupId={groupId}
+          open={!!selectedExpense}
+          onOpenChange={(open) => { if (!open) setSelectedExpense(null) }}
+          onUpdated={(updated) => {
+            setExpenses((prev) => prev?.map((e) => e.id === updated.id ? updated : e) ?? null)
+            setSelectedExpense(null)
+          }}
+          onDeleted={(id) => {
+            setExpenses((prev) => prev?.filter((e) => e.id !== id) ?? null)
+          }}
+        />
       )}
     </div>
   )
