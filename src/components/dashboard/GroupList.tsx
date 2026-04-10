@@ -15,12 +15,9 @@ export function GroupList() {
       .then((r) => r.json())
       .then((data) => {
         setGroups(Array.isArray(data) ? data : [])
-        setIsLoading(false)
       })
-      .catch(() => {
-        setGroups([])
-        setIsLoading(false)
-      })
+      .catch(() => setGroups([]))
+      .finally(() => setIsLoading(false))
   }, [])
 
   if (isLoading) return <GroupListSkeleton />

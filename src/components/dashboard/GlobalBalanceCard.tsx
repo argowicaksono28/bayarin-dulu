@@ -12,10 +12,10 @@ export function GlobalBalanceCard() {
   useEffect(() => {
     fetch("/api/groups")
       .then((r) => r.json())
-      .then((data: Group[]) => {
-        if (Array.isArray(data)) {
-          setNetBalance(data.reduce((sum, g) => sum + (g.myBalance ?? 0), 0))
-        }
+      .then((data) => {
+        setNetBalance(
+          Array.isArray(data) ? data.reduce((sum: number, g: Group) => sum + (g.myBalance ?? 0), 0) : 0
+        )
       })
       .catch(() => setNetBalance(0))
   }, [])
