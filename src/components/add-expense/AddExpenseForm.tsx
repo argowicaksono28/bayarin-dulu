@@ -102,7 +102,8 @@ export function AddExpenseForm({ groupId, onSuccess }: Props) {
   const watchedAmount = form.watch("amount")
   const totalAmount = Math.round(watchedAmount * (1 + tax / 100 + serviceCharge / 100))
 
-  const splitResult = computeSplits(totalAmount, members.map(m => m.id), splitType, splitInputs)
+  const memberIds = members.map(m => m.id)
+  const splitResult = computeSplits(totalAmount, memberIds, splitType, splitInputs)
 
   function handleInputChange(userId: string, value: number) {
     setSplitInputs((prev) => ({ ...prev, [userId]: value }))
@@ -346,7 +347,7 @@ export function AddExpenseForm({ groupId, onSuccess }: Props) {
 
         {/* Split type */}
         <SplitTypeSelector
-          memberIds={members.map(m => m.id)}
+          members={members}
           totalAmount={totalAmount}
           splitType={splitType}
           inputs={splitInputs}

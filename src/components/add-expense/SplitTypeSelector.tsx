@@ -5,10 +5,10 @@ import { SplitEqualPanel } from "./SplitEqualPanel"
 import { SplitPercentagePanel } from "./SplitPercentagePanel"
 import { SplitExactPanel } from "./SplitExactPanel"
 import { SplitSharesPanel } from "./SplitSharesPanel"
-import type { SplitType } from "@/types"
+import type { SplitType, User } from "@/types"
 
 interface Props {
-  memberIds: string[]
+  members: User[]
   totalAmount: number
   splitType: SplitType
   inputs: Record<string, number>
@@ -17,7 +17,7 @@ interface Props {
 }
 
 export function SplitTypeSelector({
-  memberIds,
+  members,
   totalAmount,
   splitType,
   inputs,
@@ -37,11 +37,11 @@ export function SplitTypeSelector({
 
         <div className="mt-3 border border-border/50 rounded-lg p-3 bg-card/30">
           <TabsContent value="equal" className="mt-0">
-            <SplitEqualPanel memberIds={memberIds} totalAmount={totalAmount} />
+            <SplitEqualPanel members={members} totalAmount={totalAmount} />
           </TabsContent>
           <TabsContent value="percentage" className="mt-0">
             <SplitPercentagePanel
-              memberIds={memberIds}
+              members={members}
               totalAmount={totalAmount}
               inputs={inputs}
               onChange={onInputChange}
@@ -49,7 +49,7 @@ export function SplitTypeSelector({
           </TabsContent>
           <TabsContent value="exact" className="mt-0">
             <SplitExactPanel
-              memberIds={memberIds}
+              members={members}
               totalAmount={totalAmount}
               inputs={inputs}
               onChange={onInputChange}
@@ -57,7 +57,7 @@ export function SplitTypeSelector({
           </TabsContent>
           <TabsContent value="shares" className="mt-0">
             <SplitSharesPanel
-              memberIds={memberIds}
+              members={members}
               totalAmount={totalAmount}
               inputs={inputs}
               onChange={onInputChange}

@@ -66,6 +66,8 @@ export interface Balance {
   groupId: GroupId
   fromUserId: UserId
   toUserId: UserId
+  fromProfile?: UserProfile & { phone?: string | null } | null
+  toProfile?: UserProfile & { phone?: string | null } | null
   amount: number
   /** Present only in detailed (non-simplified) view — the expense that generated this IOU */
   expenseDescription?: string

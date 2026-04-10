@@ -13,7 +13,6 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { toast } from "sonner"
 import { formatIDR } from "@/lib/formatters"
-import { getUserById, getGroupById } from "@/lib/mock-data"
 import type { Balance } from "@/types"
 import { Send, Copy, MessageSquare } from "lucide-react"
 
@@ -23,16 +22,16 @@ interface Props {
 
 export function RequestPaymentSheet({ balance }: Props) {
   const [open, setOpen] = useState(false)
-  const fromUser = getUserById(balance.fromUserId)
-  const toUser = getUserById(balance.toUserId)
-  let group = { name: "group" }
-  try { group = getGroupById(balance.groupId) } catch {}
+
+  const fromName = balance.fromProfile?.name ?? "User"
+  const toName = balance.toProfile?.name ?? "User"
+  const fromPhone = balance.fromProfile?.phone ?? ""
 
   const [includeGroup, setIncludeGroup] = useState(true)
 
   function buildMessage(withGroup: boolean) {
-    const groupPart = withGroup ? ` for "${group.name}"` : ""
-    return `Hi ${fromUser.name}, please transfer ${formatIDR(balance.amount)} to ${toUser.name}${groupPart}. Mark as settled once done. Thanks! 🙏`
+    const groupPart = withGroup ? ` (group expense)` : ""
+    return `Hi ${fromName}, please transfer ${formatIDR(balance.amount)} to ${toName}${groupPart}. Mark as settled once done. Thanks! 🙏`
   }
 
   const [message, setMessage] = useState(buildMessage(true))
@@ -47,7 +46,11 @@ export function RequestPaymentSheet({ balance }: Props) {
   }
 
   function handleShare() {
-    window.open(`https://wa.me/${fromUser.phone}?text=${encodeURIComponent(message)}`, "_blank")
+    const phone = fromPhone.replace(/\D/g, "")
+    const url = phone
+      ? `https://wa.me/${phone}?text=${encodeURIComponent(message)}`
+      : `https://wa.me/?text=${encodeURIComponent(message)}`
+    window.open(url, "_blank")
   }
 
   return (
@@ -80,7 +83,7 @@ export function RequestPaymentSheet({ balance }: Props) {
             </div>
             <div className="flex items-center gap-3">
               <Switch id="inc-group" checked={includeGroup} onCheckedChange={handleToggleGroup} />
-              <Label htmlFor="inc-group" className="text-sm cursor-pointer">Include group name</Label>
+              <Label htmlFor="inc-group" className="text-sm cursor-pointer">Include group note</Label>
             </div>
             <div className="flex gap-3">
               <Button variant="outline" className="flex-1 gap-2 border-border/50 hover:bg-muted" onClick={handleCopy}>

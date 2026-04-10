@@ -7,10 +7,11 @@ import {
   HoverCardTrigger,
 } from "@/components/ui/hover-card"
 import { formatIDR } from "@/lib/formatters"
-import { getUserById, CURRENT_USER_ID } from "@/lib/mock-data"
 import type { Balance } from "@/types"
 import { SettlementAlertDialog } from "@/components/settlement/SettlementAlertDialog"
 import { RequestPaymentSheet } from "@/components/request-payment/RequestPaymentSheet"
+import { createClient } from "@/lib/supabase/client"
+import { useEffect, useState } from "react"
 
 const AVATAR_COLORS = [
   "bg-emerald-500", "bg-blue-500", "bg-amber-500",
@@ -18,8 +19,9 @@ const AVATAR_COLORS = [
   "bg-pink-500", "bg-indigo-500",
 ]
 function avatarColor(id: string) {
-  const n = parseInt(id.replace(/\D/g, ""), 10)
-  return AVATAR_COLORS[n % AVATAR_COLORS.length]
+  let hash = 0
+  for (let i = 0; i < id.length; i++) hash = id.charCodeAt(i) + ((hash << 5) - hash)
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length]
 }
 
 interface Props {
@@ -28,11 +30,27 @@ interface Props {
 }
 
 export function BalanceItem({ balance, onSettle }: Props) {
-  const fromUser = getUserById(balance.fromUserId)
-  const toUser = getUserById(balance.toUserId)
-  const isOwedToMe = balance.toUserId === CURRENT_USER_ID
-  const iOwed = balance.fromUserId === CURRENT_USER_ID
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+
+  useEffect(() => {
+    createClient().auth.getUser().then(({ data }) => {
+      if (data.user) setCurrentUserId(data.user.id)
+    })
+  }, [])
+
+  const fromProfile = balance.fromProfile
+  const toProfile = balance.toProfile
+  const fromName = fromProfile?.name ?? balance.fromUserId.slice(0, 8)
+  const toName = toProfile?.name ?? balance.toUserId.slice(0, 8)
+  const fromInitials = fromProfile?.initials ?? "?"
+  const toInitials = toProfile?.initials ?? "?"
+
+  const isOwedToMe = balance.toUserId === currentUserId
+  const iOwed = balance.fromUserId === currentUserId
   const isDetailed = !!balance.expenseDescription
+
+  const otherInitials = iOwed ? toInitials : fromInitials
+  const otherId = iOwed ? balance.toUserId : balance.fromUserId
 
   return (
     <div className="flex items-center gap-4 px-4 py-4">
@@ -40,14 +58,14 @@ export function BalanceItem({ balance, onSettle }: Props) {
       <HoverCard>
         <HoverCardTrigger asChild>
           <Avatar className="h-9 w-9 cursor-pointer shrink-0">
-            <AvatarFallback className={`text-xs font-semibold text-white ${avatarColor(iOwed ? balance.toUserId : balance.fromUserId)}`}>
-              {iOwed ? toUser.initials : fromUser.initials}
+            <AvatarFallback className={`text-xs font-semibold text-white ${avatarColor(otherId)}`}>
+              {otherInitials}
             </AvatarFallback>
           </Avatar>
         </HoverCardTrigger>
         <HoverCardContent className="w-64 bg-card border-border/50" side="top">
           <div className="space-y-1 text-sm">
-            <p className="font-medium">{fromUser.name} owes {toUser.name}</p>
+            <p className="font-medium">{fromName} owes {toName}</p>
             <p className="text-muted-foreground">
               Amount: <span className="text-destructive font-semibold">{formatIDR(balance.amount)}</span>
             </p>
@@ -62,23 +80,22 @@ export function BalanceItem({ balance, onSettle }: Props) {
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-foreground truncate">
           {iOwed
-            ? `You owe ${toUser.name}`
+            ? `You owe ${toName}`
             : isOwedToMe
-              ? `${fromUser.name} owes you`
-              : `${fromUser.name} owes ${toUser.name}`}
+              ? `${fromName} owes you`
+              : `${fromName} owes ${toName}`}
         </p>
-        {/* In detailed view show the expense name; in simplified show the amount */}
-        {isDetailed ? (
+        {isDetailed && (
           <p className="text-xs text-muted-foreground mt-0.5 truncate">
             {balance.expenseCategory} {balance.expenseDescription}
           </p>
-        ) : null}
+        )}
         <p className="text-sm font-semibold text-destructive mt-0.5">
           {formatIDR(balance.amount)}
         </p>
       </div>
 
-      {/* Actions — only in simplified mode */}
+      {/* Actions */}
       {!isDetailed && onSettle && (
         <div className="flex gap-2 shrink-0">
           {(iOwed || isOwedToMe) && (
