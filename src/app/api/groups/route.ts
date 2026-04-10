@@ -1,0 +1,112 @@
+import { createClient } from "@/lib/supabase/server"
+import { NextResponse } from "next/server"
+
+export async function GET() {
+  const supabase = createClient()
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  // Get groups where the user is a member, with member list and total expenses
+  const { data: memberships, error } = await supabase
+    .from("group_members")
+    .select(`
+      group_id,
+      role,
+      groups (
+        id,
+        name,
+        emoji,
+        cover_color,
+        created_by,
+        created_at,
+        updated_at,
+        group_members ( user_id )
+      )
+    `)
+    .eq("user_id", user.id)
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Compute total expenses and my balance for each group
+  const groupIds = (memberships ?? []).map((m) => m.group_id)
+
+  // Get expense totals per group
+  const { data: expenses } = await supabase
+    .from("expenses")
+    .select("group_id, amount")
+    .in("group_id", groupIds)
+
+  // Get raw balances from the view (what the current user owes / is owed)
+  const { data: owes } = await supabase
+    .from("group_balances")
+    .select("group_id, from_user_id, to_user_id, amount")
+    .in("group_id", groupIds)
+
+  const expensesByGroup: Record<string, number> = {}
+  for (const e of expenses ?? []) {
+    expensesByGroup[e.group_id] = (expensesByGroup[e.group_id] ?? 0) + e.amount
+  }
+
+  const balanceByGroup: Record<string, number> = {}
+  for (const b of owes ?? []) {
+    if (b.to_user_id === user.id) {
+      // others owe me → positive
+      balanceByGroup[b.group_id] = (balanceByGroup[b.group_id] ?? 0) + Number(b.amount)
+    }
+    if (b.from_user_id === user.id) {
+      // I owe others → negative
+      balanceByGroup[b.group_id] = (balanceByGroup[b.group_id] ?? 0) - Number(b.amount)
+    }
+  }
+
+  const groups = (memberships ?? []).map((m) => {
+    const g = m.groups as any
+    return {
+      id: g.id,
+      name: g.name,
+      emoji: g.emoji,
+      coverColor: g.cover_color,
+      memberIds: (g.group_members as any[]).map((gm: any) => gm.user_id),
+      createdAt: g.created_at,
+      createdBy: g.created_by,
+      totalExpenses: expensesByGroup[g.id] ?? 0,
+      myBalance: balanceByGroup[g.id] ?? 0,
+    }
+  })
+
+  return NextResponse.json(groups)
+}
+
+export async function POST(request: Request) {
+  const supabase = createClient()
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  const body = await request.json()
+  const { name, emoji = "🎉", coverColor = "bg-blue-500" } = body
+
+  if (!name?.trim()) return NextResponse.json({ error: "Name is required" }, { status: 400 })
+
+  const { data: group, error } = await supabase
+    .from("groups")
+    .insert({ name: name.trim(), emoji, cover_color: coverColor, created_by: user.id })
+    .select()
+    .single()
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Add creator as admin member
+  await supabase
+    .from("group_members")
+    .insert({ group_id: group.id, user_id: user.id, role: "admin" })
+
+  // Log activity
+  await supabase.from("activities").insert({
+    group_id: group.id,
+    type: "member_joined",
+    actor_id: user.id,
+    description: "created the group",
+  })
+
+  return NextResponse.json({ id: group.id, ...group }, { status: 201 })
+}

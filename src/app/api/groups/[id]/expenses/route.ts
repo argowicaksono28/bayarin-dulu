@@ -1,0 +1,128 @@
+import { createClient } from "@/lib/supabase/server"
+import { NextResponse } from "next/server"
+
+export async function GET(_: Request, { params }: { params: { id: string } }) {
+  const supabase = createClient()
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  const { data, error } = await supabase
+    .from("expenses")
+    .select(`
+      *,
+      expense_splits ( user_id, amount ),
+      profiles!expenses_paid_by_fkey ( id, name, initials, avatar_url )
+    `)
+    .eq("group_id", params.id)
+    .order("created_at", { ascending: false })
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  const expenses = (data ?? []).map((e) => ({
+    id: e.id,
+    groupId: e.group_id,
+    description: e.description,
+    amount: e.amount,
+    baseAmount: e.base_amount,
+    tax: e.tax_percent,
+    serviceCharge: e.service_charge_percent,
+    paidBy: e.paid_by,
+    paidByProfile: e.profiles,
+    splitType: e.split_type,
+    splits: Object.fromEntries(
+      ((e.expense_splits ?? []) as any[]).map((s: any) => [s.user_id, s.amount])
+    ),
+    category: e.category,
+    notes: e.notes,
+    createdAt: e.created_at,
+    createdBy: e.created_by,
+  }))
+
+  return NextResponse.json(expenses)
+}
+
+export async function POST(request: Request, { params }: { params: { id: string } }) {
+  const supabase = createClient()
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  const body = await request.json()
+  const {
+    description,
+    amount,
+    baseAmount,
+    tax = 0,
+    serviceCharge = 0,
+    paidBy,
+    splitType = "equal",
+    splits,
+    category = "📦",
+    notes,
+  } = body
+
+  if (!description || !amount || !paidBy || !splits) {
+    return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
+  }
+
+  const { data: expense, error } = await supabase
+    .from("expenses")
+    .insert({
+      group_id: params.id,
+      description,
+      amount,
+      base_amount: baseAmount ?? amount,
+      tax_percent: tax,
+      service_charge_percent: serviceCharge,
+      paid_by: paidBy,
+      split_type: splitType,
+      category,
+      notes,
+      created_by: user.id,
+    })
+    .select()
+    .single()
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Insert splits
+  const splitRows = Object.entries(splits as Record<string, number>).map(([userId, amt]) => ({
+    expense_id: expense.id,
+    user_id: userId,
+    amount: amt,
+  }))
+
+  const { error: splitError } = await supabase.from("expense_splits").insert(splitRows)
+  if (splitError) return NextResponse.json({ error: splitError.message }, { status: 500 })
+
+  // Log activity
+  await supabase.from("activities").insert({
+    group_id: params.id,
+    type: "expense_added",
+    actor_id: user.id,
+    expense_id: expense.id,
+    amount,
+    description: `added expense "${description}"`,
+  })
+
+  // Notify group members
+  const { data: members } = await supabase
+    .from("group_members")
+    .select("user_id")
+    .eq("group_id", params.id)
+    .neq("user_id", user.id)
+
+  if (members && members.length > 0) {
+    await supabase.from("notifications").insert(
+      members.map((m) => ({
+        user_id: m.user_id,
+        type: "expense_added",
+        title: "New expense added",
+        body: `${description} — ${amount}`,
+        group_id: params.id,
+        actor_id: user.id,
+      }))
+    )
+  }
+
+  return NextResponse.json(expense, { status: 201 })
+}
