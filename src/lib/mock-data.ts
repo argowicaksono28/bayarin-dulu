@@ -576,7 +576,7 @@ export function getGroupById(id: GroupId): Group {
 export function getExpensesByGroupId(groupId: GroupId): Expense[] {
   return mockExpenses
     .filter((e) => e.groupId === groupId)
-    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 }
 
 export function getBalancesByGroupId(groupId: GroupId): Balance[] {
@@ -586,7 +586,7 @@ export function getBalancesByGroupId(groupId: GroupId): Balance[] {
 export function getActivitiesByGroupId(groupId: GroupId): Activity[] {
   return mockActivities
     .filter((a) => a.groupId === groupId)
-    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 }
 
 /** Returns per-expense IOUs — used in the non-simplified balances view */
