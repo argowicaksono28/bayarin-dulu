@@ -18,24 +18,41 @@ interface Props {
 export function BalanceList({ groupId }: Props) {
   const [rawBalances, setRawBalances] = useState<Balance[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [fetchError, setFetchError] = useState<string | null>(null)
   const [simplified, setSimplified] = useState(true)
   const { balances, settle } = useSettlement(rawBalances)
 
   useEffect(() => {
     setIsLoading(true)
+    setFetchError(null)
     fetch(`/api/groups/${groupId}/balances`)
-      .then((r) => r.json())
-      .then((data) => {
-        setRawBalances(Array.isArray(data) ? data : [])
+      .then(async (r) => {
+        const data = await r.json()
+        if (!r.ok) {
+          setFetchError(data.error ?? "Failed to load balances")
+          setRawBalances([])
+        } else {
+          setRawBalances(Array.isArray(data) ? data : [])
+        }
         setIsLoading(false)
       })
       .catch(() => {
+        setFetchError("Network error — could not load balances")
         setRawBalances([])
         setIsLoading(false)
       })
   }, [groupId])
 
   if (isLoading) return <BalanceListSkeleton />
+
+  if (fetchError) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 text-center px-4">
+        <p className="text-sm text-destructive font-medium">{fetchError}</p>
+        <p className="text-xs text-muted-foreground mt-1">Check your connection and try refreshing</p>
+      </div>
+    )
+  }
 
   const simplifiedList = simplifyDebts(balances)
   const displayed = simplified ? simplifiedList : balances
