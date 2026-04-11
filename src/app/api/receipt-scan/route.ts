@@ -25,8 +25,8 @@ export async function POST(request: Request) {
       "content-type": "application/json",
     },
     body: JSON.stringify({
-      model: "claude-3-5-haiku-20241022",
-      max_tokens: 256,
+      model: "claude-3-haiku-20240307",
+      max_tokens: 1024,
       messages: [
         {
           role: "user",
@@ -37,10 +37,30 @@ export async function POST(request: Request) {
             },
             {
               type: "text",
-              text: `You are a receipt scanner. Extract the total amount and a short description (3-5 words) from this receipt image.
-Respond ONLY with a raw JSON object — no markdown, no code fences, no explanation:
-{"amount": <number, digits only, no currency symbol>, "description": "<short description in English>"}
-If you cannot determine the total, use 0. Always output valid raw JSON.`,
+              text: `You are a receipt OCR engine. Extract ALL line items, tax, service charge, and totals from this receipt image.
+
+IMPORTANT NOTES:
+- "PB1" on Indonesian receipts = government restaurant/hotel tax (Pajak Bangunan 1), typically 10%. Treat it as tax.
+- "Service" or "Service Charge" = service charge, typically 5-10%.
+- Amounts are in IDR (Indonesian Rupiah) — digits only, no symbols.
+- qty defaults to 1 if not shown.
+
+Respond ONLY with raw JSON (no markdown, no code fences):
+{
+  "restaurantName": "string or empty",
+  "items": [
+    { "name": "item name", "qty": 1, "amount": 12000 }
+  ],
+  "subtotal": 0,
+  "taxLabel": "PB1 or Tax or empty",
+  "taxPercent": 0,
+  "tax": 0,
+  "serviceChargePercent": 0,
+  "serviceCharge": 0,
+  "total": 0
+}
+
+If a field cannot be determined, use 0 or empty string. Always output valid raw JSON.`,
             },
           ],
         },
@@ -50,20 +70,47 @@ If you cannot determine the total, use 0. Always output valid raw JSON.`,
 
   if (!response.ok) {
     const err = await response.json().catch(() => ({}))
+    console.error("Anthropic API error:", err)
     return NextResponse.json({ error: (err as any).error?.message ?? "AI service error" }, { status: 500 })
   }
 
   const result = await response.json()
   const raw = (result.content?.[0]?.text ?? "").trim()
 
-  // Strip markdown code fences if Claude wraps the JSON anyway
+  // Strip markdown code fences if present
   const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim()
 
   try {
     const parsed = JSON.parse(cleaned)
+
+    // Derive taxPercent from tax amount if not given
+    let taxPercent = typeof parsed.taxPercent === "number" ? parsed.taxPercent : 0
+    let serviceChargePercent = typeof parsed.serviceChargePercent === "number" ? parsed.serviceChargePercent : 0
+    const subtotal = typeof parsed.subtotal === "number" ? parsed.subtotal : 0
+    if (taxPercent === 0 && subtotal > 0 && parsed.tax > 0) {
+      taxPercent = Math.round((parsed.tax / subtotal) * 100)
+    }
+    if (serviceChargePercent === 0 && subtotal > 0 && parsed.serviceCharge > 0) {
+      serviceChargePercent = Math.round((parsed.serviceCharge / subtotal) * 100)
+    }
+
     return NextResponse.json({
-      amount: typeof parsed.amount === "number" ? parsed.amount : 0,
-      description: typeof parsed.description === "string" ? parsed.description : "",
+      restaurantName: typeof parsed.restaurantName === "string" ? parsed.restaurantName : "",
+      items: Array.isArray(parsed.items)
+        ? parsed.items.map((item: any, idx: number) => ({
+            id: String(idx),
+            name: typeof item.name === "string" ? item.name : `Item ${idx + 1}`,
+            qty: typeof item.qty === "number" ? item.qty : 1,
+            amount: typeof item.amount === "number" ? item.amount : 0,
+          }))
+        : [],
+      subtotal,
+      taxLabel: typeof parsed.taxLabel === "string" ? parsed.taxLabel : "Tax",
+      taxPercent,
+      tax: typeof parsed.tax === "number" ? parsed.tax : 0,
+      serviceChargePercent,
+      serviceCharge: typeof parsed.serviceCharge === "number" ? parsed.serviceCharge : 0,
+      total: typeof parsed.total === "number" ? parsed.total : 0,
     })
   } catch {
     console.error("Receipt scan raw response:", raw)
