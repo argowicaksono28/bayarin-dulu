@@ -337,7 +337,8 @@ export function AddExpenseForm({ groupId, onSuccess, initialValues, onReceiptSca
             <FormItem>
               <FormLabel>Paid by</FormLabel>
               <div className="flex gap-2 flex-wrap">
-                {members.map((member) => (
+                {/* Only registered members can be the payer — guests have no account */}
+                {members.filter((m) => !m.isGuest).map((member) => (
                   <button
                     key={member.id}
                     type="button"
