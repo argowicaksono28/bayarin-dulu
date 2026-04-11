@@ -25,7 +25,7 @@ export async function POST(request: Request) {
       "content-type": "application/json",
     },
     body: JSON.stringify({
-      model: "claude-haiku-4-5-20251001",
+      model: "claude-3-5-haiku-20241022",
       max_tokens: 256,
       messages: [
         {
@@ -38,9 +38,9 @@ export async function POST(request: Request) {
             {
               type: "text",
               text: `You are a receipt scanner. Extract the total amount and a short description (3-5 words) from this receipt image.
-Respond ONLY with a JSON object in this exact format with no markdown or extra text:
-{"amount": <number in IDR without currency symbol, just digits>, "description": "<short description>"}
-If you cannot determine the total, use 0 for amount. Always respond with valid JSON.`,
+Respond ONLY with a raw JSON object — no markdown, no code fences, no explanation:
+{"amount": <number, digits only, no currency symbol>, "description": "<short description in English>"}
+If you cannot determine the total, use 0. Always output valid raw JSON.`,
             },
           ],
         },
@@ -54,15 +54,19 @@ If you cannot determine the total, use 0 for amount. Always respond with valid J
   }
 
   const result = await response.json()
-  const text = result.content?.[0]?.text ?? "{}"
+  const raw = (result.content?.[0]?.text ?? "").trim()
+
+  // Strip markdown code fences if Claude wraps the JSON anyway
+  const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim()
 
   try {
-    const parsed = JSON.parse(text)
+    const parsed = JSON.parse(cleaned)
     return NextResponse.json({
       amount: typeof parsed.amount === "number" ? parsed.amount : 0,
       description: typeof parsed.description === "string" ? parsed.description : "",
     })
   } catch {
-    return NextResponse.json({ error: "Failed to parse receipt data" }, { status: 500 })
+    console.error("Receipt scan raw response:", raw)
+    return NextResponse.json({ error: "Failed to read receipt — try a clearer photo" }, { status: 500 })
   }
 }
