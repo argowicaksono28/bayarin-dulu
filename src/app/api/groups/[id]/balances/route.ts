@@ -21,16 +21,26 @@ export async function GET(request: Request, { params }: { params: { id: string }
     .eq("group_id", params.id)
     .eq("status", "completed")
 
-  // Fetch all member profiles for this group
+  // Fetch all member profiles for this group (registered users)
   const { data: members } = await supabase
     .from("group_members")
     .select("user_id, profiles ( id, name, initials, avatar_url, phone )")
+    .eq("group_id", params.id)
+
+  // Fetch guest members for this group
+  const { data: guests } = await supabase
+    .from("guest_members")
+    .select("id, name, initials")
     .eq("group_id", params.id)
 
   const profileMap: Record<string, { id: string; name: string; initials: string; avatarUrl: string | null; phone: string | null }> = {}
   for (const m of members ?? []) {
     const p = m.profiles as any
     if (p) profileMap[p.id] = { id: p.id, name: p.name, initials: p.initials, avatarUrl: p.avatar_url, phone: p.phone }
+  }
+  // Add guests to profileMap so they appear in balance display
+  for (const g of guests ?? []) {
+    profileMap[g.id] = { id: g.id, name: g.name, initials: g.initials, avatarUrl: null, phone: null }
   }
 
   // Build a net balance map: key = "fromId|toId"
