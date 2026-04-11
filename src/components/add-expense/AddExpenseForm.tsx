@@ -37,7 +37,7 @@ import { SplitTypeSelector } from "./SplitTypeSelector"
 import { TaxServiceAccordion } from "./TaxServiceAccordion"
 import { CalculatorKeyboard } from "./CalculatorKeyboard"
 import { createClient } from "@/lib/supabase/client"
-import { ReceiptScannerSheet, type ScannedReceipt } from "@/components/receipt/ReceiptScannerSheet"
+import type { ScannedReceipt, ReceiptConfirmResult } from "@/components/receipt/ReceiptScannerSheet"
 
 const schema = z.object({
   description: z.string().min(1, "Description is required"),
@@ -68,9 +68,13 @@ interface Props {
   onSuccess: () => void
   /** When provided, form operates in edit mode */
   initialValues?: InitialValues
+  /** Called when receipt is scanned — parent renders the receipt sheet */
+  onReceiptScanned?: (receipt: ScannedReceipt) => void
+  /** When parent confirms a receipt split, auto-fill the form */
+  receiptResult?: ReceiptConfirmResult | null
 }
 
-export function AddExpenseForm({ groupId, onSuccess, initialValues }: Props) {
+export function AddExpenseForm({ groupId, onSuccess, initialValues, onReceiptScanned, receiptResult }: Props) {
   const isEdit = !!initialValues
   const [members, setMembers] = useState<User[]>([])
   const [currentUserId, setCurrentUserId] = useState<string>("")
@@ -82,8 +86,6 @@ export function AddExpenseForm({ groupId, onSuccess, initialValues }: Props) {
   const [showCalc, setShowCalc] = useState(false)
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [scanning, setScanning] = useState(false)
-  const [scannedReceipt, setScannedReceipt] = useState<ScannedReceipt | null>(null)
-  const [receiptOpen, setReceiptOpen] = useState(false)
 
   useEffect(() => {
     const supabase = createClient()
@@ -115,6 +117,17 @@ export function AddExpenseForm({ groupId, onSuccess, initialValues }: Props) {
       form.setValue("paidBy", currentUserId)
     }
   }, [currentUserId, form])
+
+  // Fill form when parent confirms a receipt split
+  useEffect(() => {
+    if (!receiptResult) return
+    form.setValue("description", receiptResult.description)
+    form.setValue("amount", receiptResult.baseAmount)
+    setTax(receiptResult.taxPercent)
+    setServiceCharge(receiptResult.serviceChargePercent)
+    setSplitType("exact")
+    setSplitInputs(receiptResult.splits)
+  }, [receiptResult, form])
 
   const watchedAmount = form.watch("amount")
   const totalAmount = Math.round(watchedAmount * (1 + tax / 100 + serviceCharge / 100))
@@ -430,8 +443,7 @@ export function AddExpenseForm({ groupId, onSuccess, initialValues }: Props) {
                     toast.error(data.error ?? "Failed to scan receipt")
                     return
                   }
-                  setScannedReceipt(data as ScannedReceipt)
-                  setReceiptOpen(true)
+                  onReceiptScanned?.(data as ScannedReceipt)
                 } catch {
                   toast.error("Failed to scan receipt")
                 } finally {
@@ -460,21 +472,6 @@ export function AddExpenseForm({ groupId, onSuccess, initialValues }: Props) {
               )}
             </Button>
 
-            <ReceiptScannerSheet
-              open={receiptOpen}
-              onOpenChange={setReceiptOpen}
-              receipt={scannedReceipt}
-              members={members}
-              onConfirm={(result) => {
-                form.setValue("description", result.description)
-                form.setValue("amount", result.baseAmount)
-                setTax(result.taxPercent)
-                setServiceCharge(result.serviceChargePercent)
-                setSplitType("exact")
-                // Convert splits to per-member input values
-                setSplitInputs(result.splits)
-              }}
-            />
           </div>
         )}
 
