@@ -20,7 +20,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="antialiased">
+      <body className="antialiased bg-background text-foreground min-h-screen">
         <ThemeProvider>
           <AppShell>{children}</AppShell>
           <Toaster position="bottom-center" richColors />

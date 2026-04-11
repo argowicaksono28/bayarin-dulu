@@ -148,7 +148,12 @@ export function MembersSheet({ groupId, members }: Props) {
                   </Avatar>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium">{member.name}</p>
-                    <p className="text-xs text-muted-foreground truncate">{member.phone || member.email}</p>
+                    {member.email && (
+                      <p className="text-xs text-muted-foreground truncate">{member.email}</p>
+                    )}
+                    {member.phone && (
+                      <p className="text-xs text-muted-foreground truncate">{member.phone}</p>
+                    )}
                   </div>
                   {idx === 0 && (
                     <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-primary/15 text-primary">Admin</span>

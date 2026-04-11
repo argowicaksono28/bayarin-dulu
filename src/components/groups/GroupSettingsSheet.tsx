@@ -12,9 +12,10 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Settings, UserPlus, Trash2, Loader2 } from "lucide-react"
+import { Settings, UserPlus, Trash2, Loader2, LogOut } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
+import { useRouter } from "next/navigation"
 import type { Group } from "@/types"
 import { InviteMemberSheet } from "@/components/invite/InviteMemberSheet"
 
@@ -42,12 +43,15 @@ interface Props {
 }
 
 export function GroupSettingsSheet({ group }: Props) {
+  const router = useRouter()
   const [open, setOpen] = useState(false)
   const [inviteOpen, setInviteOpen] = useState(false)
   const [name, setName] = useState(group.name)
   const [emoji, setEmoji] = useState(group.emoji)
   const [coverColor, setCoverColor] = useState(group.coverColor || "bg-violet-500")
   const [loading, setLoading] = useState(false)
+  const [leavePending, setLeavePending] = useState(false)
+  const [leaveConfirm, setLeaveConfirm] = useState(false)
 
   const isDirty = name !== group.name || emoji !== group.emoji || coverColor !== (group.coverColor || "bg-violet-500")
 
@@ -68,9 +72,23 @@ export function GroupSettingsSheet({ group }: Props) {
     }
   }
 
-  function handleLeave() {
-    toast("You left the group", { description: group.name })
+  async function handleLeave() {
+    if (!leaveConfirm) {
+      setLeaveConfirm(true)
+      return
+    }
+    setLeavePending(true)
+    const res = await fetch(`/api/groups/${group.id}/leave`, { method: "DELETE" })
+    const data = await res.json()
+    setLeavePending(false)
+    if (!res.ok) {
+      toast.error(data.error ?? "Failed to leave group")
+      setLeaveConfirm(false)
+      return
+    }
+    toast.success(`Left "${group.name}"`)
     setOpen(false)
+    router.push("/dashboard")
   }
 
   return (
@@ -181,14 +199,24 @@ export function GroupSettingsSheet({ group }: Props) {
 
                 <button
                   onClick={handleLeave}
-                  className="w-full flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-destructive/10 transition-colors text-left"
+                  disabled={leavePending}
+                  onBlur={() => setLeaveConfirm(false)}
+                  className="w-full flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-destructive/10 transition-colors text-left disabled:opacity-60"
                 >
-                  <div className="h-9 w-9 rounded-full bg-destructive/10 flex items-center justify-center">
-                    <Trash2 className="h-4 w-4 text-destructive" />
+                  <div className="h-9 w-9 rounded-full bg-destructive/10 flex items-center justify-center shrink-0">
+                    {leavePending
+                      ? <Loader2 className="h-4 w-4 text-destructive animate-spin" />
+                      : <LogOut className="h-4 w-4 text-destructive" />}
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-destructive">Leave Group</p>
-                    <p className="text-xs text-muted-foreground">You won&apos;t be able to see this group anymore</p>
+                    <p className="text-sm font-medium text-destructive">
+                      {leaveConfirm ? "Tap again to confirm" : "Leave Group"}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {leaveConfirm
+                        ? "This will remove you from the group"
+                        : "You won't be able to see this group anymore"}
+                    </p>
                   </div>
                 </button>
               </div>
