@@ -37,13 +37,23 @@ export function MembersSheet({ groupId, members }: Props) {
   const [adding, setAdding] = useState(false)
   const [removingId, setRemovingId] = useState<string | null>(null)
 
-  useEffect(() => {
-    if (!open) return
+  // Fetch guests eagerly so the avatar stack shows them too
+  function loadGuests() {
     fetch(`/api/groups/${groupId}/guests`)
       .then((r) => r.json())
       .then((data) => { if (Array.isArray(data)) setGuests(data) })
       .catch(() => {})
-  }, [open, groupId])
+  }
+
+  useEffect(() => {
+    loadGuests()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groupId])
+
+  useEffect(() => {
+    if (open) loadGuests()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
 
   async function handleAddGuest() {
     const name = guestName.trim()
@@ -85,24 +95,34 @@ export function MembersSheet({ groupId, members }: Props) {
     }
   }
 
+  // Combined list for the avatar stack
+  const allMembers = [
+    ...members,
+    ...guests.map((g) => ({ id: g.id, name: g.name, initials: g.initials, isGuest: true })),
+  ]
+
   return (
     <>
-      {/* Clickable avatar stack */}
+      {/* Clickable avatar stack — shows real members + guests */}
       <button
         onClick={() => setOpen(true)}
         className="flex -space-x-2 mr-1 hover:opacity-80 transition-opacity"
-        aria-label={`${members.length} members`}
+        aria-label={`${allMembers.length} members`}
       >
-        {members.slice(0, 3).map((member, idx) => (
+        {allMembers.slice(0, 4).map((member, idx) => (
           <Avatar key={member.id} className="h-7 w-7 border-2 border-background">
-            <AvatarFallback className={`text-[10px] text-white font-semibold ${avatarColors[idx % avatarColors.length]}`}>
+            <AvatarFallback
+              className={`text-[10px] font-semibold ${"isGuest" in member && member.isGuest
+                ? "bg-muted text-muted-foreground"
+                : `${avatarColors[idx % avatarColors.length]} text-white`}`}
+            >
               {member.initials}
             </AvatarFallback>
           </Avatar>
         ))}
-        {members.length > 3 && (
+        {allMembers.length > 4 && (
           <div className="h-7 w-7 rounded-full border-2 border-background bg-muted flex items-center justify-center text-[10px] text-muted-foreground font-medium">
-            +{members.length - 3}
+            +{allMembers.length - 4}
           </div>
         )}
       </button>

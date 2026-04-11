@@ -170,6 +170,21 @@ export function AddExpenseForm({ groupId, onSuccess, initialValues, onReceiptSca
       return
     }
 
+    // Filter guest IDs out of splits — guest UUIDs are not in auth.users
+    // and would cause a FK constraint error on expense_splits.user_id.
+    // Redistribute their share to the payer (they collect cash from guests separately).
+    const guestIds = new Set(members.filter((m) => m.isGuest).map((m) => m.id))
+    const cleanSplits: Record<string, number> = {}
+    let guestTotal = 0
+    for (const [uid, amt] of Object.entries(splitResult.splits)) {
+      if (guestIds.has(uid)) guestTotal += amt
+      else cleanSplits[uid] = amt
+    }
+    if (guestTotal > 0) {
+      const payerId = values.paidBy || currentUserId
+      cleanSplits[payerId] = (cleanSplits[payerId] ?? 0) + guestTotal
+    }
+
     const payload = {
       description: values.description,
       amount: totalAmount,
@@ -178,7 +193,7 @@ export function AddExpenseForm({ groupId, onSuccess, initialValues, onReceiptSca
       serviceCharge,
       paidBy: values.paidBy,
       splitType,
-      splits: splitResult.splits,
+      splits: Object.keys(cleanSplits).length > 0 ? cleanSplits : splitResult.splits,
       category: values.category,
       notes: values.notes,
     }
