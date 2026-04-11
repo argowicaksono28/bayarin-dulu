@@ -128,13 +128,26 @@ export function AddExpenseForm({ groupId, onSuccess, initialValues, onReceiptSca
   // Fill form when parent confirms a receipt split
   useEffect(() => {
     if (!receiptResult) return
-    form.setValue("description", receiptResult.description)
-    form.setValue("amount", receiptResult.baseAmount)
+    form.setValue("description", receiptResult.description, { shouldValidate: true, shouldDirty: true })
+    form.setValue("amount", receiptResult.baseAmount, { shouldValidate: true, shouldDirty: true })
     setTax(receiptResult.taxPercent)
     setServiceCharge(receiptResult.serviceChargePercent)
     setSplitType("exact")
-    setSplitInputs(receiptResult.splits)
-  }, [receiptResult, form])
+    // Only keep splits for real users — guests are not in auth.users
+    const guestIds = new Set(members.filter((m) => m.isGuest).map((m) => m.id))
+    const realSplits: Record<string, number> = {}
+    let guestTotal = 0
+    for (const [uid, amt] of Object.entries(receiptResult.splits)) {
+      if (guestIds.has(uid)) guestTotal += amt
+      else realSplits[uid] = amt
+    }
+    // Distribute guest totals to the payer (they collect cash from guests separately)
+    if (guestTotal > 0) {
+      const payerId = form.getValues("paidBy") || currentUserId
+      realSplits[payerId] = (realSplits[payerId] ?? 0) + guestTotal
+    }
+    setSplitInputs(realSplits)
+  }, [receiptResult, form, members, currentUserId])
 
   const watchedAmount = form.watch("amount")
   const totalAmount = Math.round(watchedAmount * (1 + tax / 100 + serviceCharge / 100))
@@ -314,7 +327,7 @@ export function AddExpenseForm({ groupId, onSuccess, initialValues, onReceiptSca
                     </Button>
                   </FormControl>
                 </PopoverTrigger>
-                <PopoverContent className="w-[min(100vw-2rem,22rem)] p-0" align="start">
+                <PopoverContent className="w-[min(100vw-2rem,22rem)] p-0 bg-card border-border/50 shadow-xl z-[200]" align="start">
                   <Calendar
                     mode="single"
                     selected={field.value}
