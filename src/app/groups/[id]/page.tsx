@@ -75,7 +75,7 @@ export default async function GroupPage({ params }: PageProps) {
 
           <div className="flex items-center gap-2">
             {/* Member chips — click to open member list */}
-            <MembersSheet members={members} />
+            <MembersSheet groupId={params.id} members={members} />
             {/* Settings */}
             <GroupSettingsSheet group={group} />
           </div>

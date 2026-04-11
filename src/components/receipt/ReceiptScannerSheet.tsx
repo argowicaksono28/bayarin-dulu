@@ -56,43 +56,43 @@ interface Props {
 
 // ─── Helper ───────────────────────────────────────────────────────────────────
 
+/**
+ * Distributes the actual receipt total proportionally based on item assignments.
+ * Always sums to exactly grandTotal — never recalculates from tax %.
+ */
 function computeItemSplits(
   items: ScannedItem[],
   assignments: Record<string, string[]>,
   members: User[],
-  taxPercent: number,
-  serviceChargePercent: number
+  grandTotal: number
 ): Record<string, number> {
-  const memberTotals: Record<string, number> = {}
-  members.forEach((m) => { memberTotals[m.id] = 0 })
+  if (members.length === 0) return {}
+
+  // Step 1: build each member's raw item subtotal
+  const memberItemTotals: Record<string, number> = {}
+  members.forEach((m) => { memberItemTotals[m.id] = 0 })
 
   for (const item of items) {
     const assigned = assignments[item.id] ?? members.map((m) => m.id)
-    const activeAssigned = assigned.filter((id) => memberTotals[id] !== undefined)
-    if (activeAssigned.length === 0) continue
-    const share = item.amount / activeAssigned.length
-    for (const uid of activeAssigned) {
-      memberTotals[uid] = (memberTotals[uid] ?? 0) + share
-    }
+    const active = assigned.filter((id) => id in memberItemTotals)
+    if (active.length === 0) continue
+    const share = item.amount / active.length
+    for (const uid of active) memberItemTotals[uid] += share
   }
 
-  // Apply tax + service proportionally
-  const subtotal = Object.values(memberTotals).reduce((a, b) => a + b, 0)
-  const multiplier = 1 + taxPercent / 100 + serviceChargePercent / 100
-
+  // Step 2: distribute grandTotal proportionally, last member absorbs rounding
+  const itemsSubtotal = Object.values(memberItemTotals).reduce((a, b) => a + b, 0)
+  const ids = members.map((m) => m.id)
   const result: Record<string, number> = {}
-  let total = 0
-  const ids = Object.keys(memberTotals)
+  let assigned = 0
+
   for (let i = 0; i < ids.length - 1; i++) {
-    const rounded = Math.round(memberTotals[ids[i]] * multiplier)
+    const proportion = itemsSubtotal > 0 ? memberItemTotals[ids[i]] / itemsSubtotal : 1 / ids.length
+    const rounded = Math.round(proportion * grandTotal)
     result[ids[i]] = rounded
-    total += rounded
+    assigned += rounded
   }
-  // Last member gets remainder to avoid rounding drift
-  const grandTotal = subtotal > 0
-    ? Math.round(subtotal * multiplier)
-    : 0
-  result[ids[ids.length - 1]] = Math.max(0, grandTotal - total)
+  result[ids[ids.length - 1]] = Math.max(0, grandTotal - assigned)
 
   return result
 }
@@ -120,16 +120,14 @@ export function ReceiptScannerSheet({ open, onOpenChange, receipt, members, onCo
     return assigned.includes(memberId)
   }
 
+  const grandTotal = receipt
+    ? receipt.total || (receipt.subtotal + receipt.tax + receipt.serviceCharge)
+    : 0
+
   const memberSplits = useMemo(() => {
     if (!receipt) return {}
-    return computeItemSplits(
-      receipt.items,
-      assignments,
-      members,
-      receipt.taxPercent,
-      receipt.serviceChargePercent
-    )
-  }, [receipt, assignments, members])
+    return computeItemSplits(receipt.items, assignments, members, grandTotal)
+  }, [receipt, assignments, members, grandTotal])
 
   function handleConfirm() {
     if (!receipt) return
@@ -144,8 +142,6 @@ export function ReceiptScannerSheet({ open, onOpenChange, receipt, members, onCo
   }
 
   if (!receipt) return null
-
-  const grandTotal = receipt.total || (receipt.subtotal + receipt.tax + receipt.serviceCharge)
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>

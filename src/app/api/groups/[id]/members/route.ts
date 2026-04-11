@@ -27,16 +27,32 @@ export async function POST(request: Request, { params }: { params: { id: string 
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const { email } = await request.json()
-  if (!email) return NextResponse.json({ error: "Email is required" }, { status: 400 })
+  const { userId } = await request.json()
+  if (!userId) return NextResponse.json({ error: "userId is required" }, { status: 400 })
 
-  // Find user by email via auth.users — look up profiles linked to auth
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("id, name")
-    .ilike("id", `%`) // fallback — we'll match on auth side
+  // Check not already a member
+  const { data: existing } = await supabase
+    .from("group_members")
+    .select("user_id")
+    .eq("group_id", params.id)
+    .eq("user_id", userId)
+    .single()
 
-  // Invite via email is done through Supabase Auth invite in production.
-  // For now, insert a notification for the invitee (if they exist).
-  return NextResponse.json({ message: "Invitation sent" }, { status: 200 })
+  if (existing) return NextResponse.json({ error: "Already a member" }, { status: 409 })
+
+  const { error } = await supabase
+    .from("group_members")
+    .insert({ group_id: params.id, user_id: userId, role: "member" })
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Log activity
+  await supabase.from("activities").insert({
+    group_id: params.id,
+    type: "member_joined",
+    actor_id: userId,
+    description: "was added to the group",
+  })
+
+  return NextResponse.json({ success: true })
 }
