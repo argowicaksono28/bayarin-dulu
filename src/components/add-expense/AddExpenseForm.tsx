@@ -307,7 +307,7 @@ export function AddExpenseForm({ groupId, onSuccess, initialValues, onReceiptSca
                     </Button>
                   </FormControl>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
+                <PopoverContent className="w-[min(100vw-2rem,22rem)] p-0" align="start">
                   <Calendar
                     mode="single"
                     selected={field.value}

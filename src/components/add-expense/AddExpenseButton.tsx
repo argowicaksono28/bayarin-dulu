@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
+// ScrollArea is used for mobile sheet only; desktop uses native overflow-y-auto
 import { AddExpenseForm } from "./AddExpenseForm"
 import { useMediaQuery } from "@/hooks/useMediaQuery"
 import { ReceiptScannerSheet, type ScannedReceipt, type ReceiptConfirmResult } from "@/components/receipt/ReceiptScannerSheet"
@@ -53,13 +54,13 @@ export function AddExpenseButton({ groupId, open, onOpenChange }: Props) {
     <>
       {isDesktop ? (
         <Dialog open={open} onOpenChange={onOpenChange}>
-          <DialogContent className="max-w-lg bg-card border-border/50 p-0 max-h-[90vh] flex flex-col">
-            <DialogHeader className="px-6 pt-5 pb-2 shrink-0">
+          <DialogContent className="max-w-lg bg-card border-border/50 p-0 flex flex-col" style={{ maxHeight: "90vh" }}>
+            <DialogHeader className="px-6 pt-5 pb-3 shrink-0 border-b border-border/30">
               <DialogTitle>Add Expense</DialogTitle>
             </DialogHeader>
-            <ScrollArea className="flex-1 px-6 pb-6">
+            <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4">
               {form}
-            </ScrollArea>
+            </div>
           </DialogContent>
         </Dialog>
       ) : (

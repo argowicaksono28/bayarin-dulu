@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
+import { useRouter } from "next/navigation"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import {
   Sheet,
@@ -35,6 +36,7 @@ interface Props {
 }
 
 export function MembersSheet({ groupId, members, onMemberAdded }: Props) {
+  const router = useRouter()
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState("")
   const [results, setResults] = useState<SearchProfile[]>([])
@@ -89,6 +91,7 @@ export function MembersSheet({ groupId, members, onMemberAdded }: Props) {
       setAddedIds((prev) => new Set([...prev, profile.id]))
       toast.success(`${profile.name} added to group`)
       onMemberAdded?.()
+      router.refresh()
     } catch {
       toast.error("Failed to add member")
     } finally {
