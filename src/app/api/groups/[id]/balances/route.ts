@@ -6,32 +6,47 @@ export async function GET(request: Request, { params }: { params: { id: string }
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  // ── 1. Compute raw balances directly from expense_splits + expenses ──
-  // Avoids the group_balances view which requires an explicit GRANT to
-  // the authenticated role and can silently fail via RLS.
-  const { data: splits, error: splitsError } = await supabase
-    .from("expense_splits")
-    .select("user_id, amount, expenses!inner( group_id, paid_by )")
-    .eq("expenses.group_id", params.id)
+  // ── 1. Get all expenses for this group with their payer ──────
+  const { data: expenses, error: expError } = await supabase
+    .from("expenses")
+    .select("id, paid_by")
+    .eq("group_id", params.id)
 
-  if (splitsError) {
-    console.error("[balances] splits error:", splitsError)
-    return NextResponse.json({ error: splitsError.message }, { status: 500 })
+  if (expError) {
+    console.error("[balances] expenses error:", expError)
+    return NextResponse.json({ error: expError.message }, { status: 500 })
   }
 
-  // ── 2. Fetch completed settlements for the group ──
+  const expenseIds = (expenses ?? []).map((e) => e.id)
+  const payerByExpense: Record<string, string> = {}
+  for (const e of expenses ?? []) payerByExpense[e.id] = e.paid_by
+
+  // ── 2. Get all splits for those expenses ─────────────────────
+  let splits: { expense_id: string; user_id: string; amount: number }[] = []
+  if (expenseIds.length > 0) {
+    const { data: splitData, error: splitError } = await supabase
+      .from("expense_splits")
+      .select("expense_id, user_id, amount")
+      .in("expense_id", expenseIds)
+
+    if (splitError) {
+      console.error("[balances] splits error:", splitError)
+      return NextResponse.json({ error: splitError.message }, { status: 500 })
+    }
+    splits = splitData ?? []
+  }
+
+  // ── 3. Fetch completed settlements for the group ─────────────
   const { data: settled, error: settledError } = await supabase
     .from("settlements")
     .select("from_user_id, to_user_id, amount")
     .eq("group_id", params.id)
     .eq("status", "completed")
 
-  if (settledError) {
-    console.error("[balances] settlements error:", settledError)
-  }
+  if (settledError) console.error("[balances] settlements error:", settledError)
 
-  // ── 3. Build profile map (registered members + guests) ──
-  const [{ data: members }, { data: guests }] = await Promise.all([
+  // ── 4. Build profile map: registered members + guests ────────
+  const [{ data: members, error: membErr }, { data: guests, error: guestErr }] = await Promise.all([
     supabase
       .from("group_members")
       .select("user_id, profiles ( id, name, initials, avatar_url, phone )")
@@ -42,6 +57,9 @@ export async function GET(request: Request, { params }: { params: { id: string }
       .eq("group_id", params.id),
   ])
 
+  if (membErr)  console.error("[balances] members error:", membErr)
+  if (guestErr) console.error("[balances] guests error:", guestErr)
+
   const profileMap: Record<string, { id: string; name: string; initials: string; avatarUrl: string | null; phone: string | null }> = {}
   for (const m of members ?? []) {
     const p = m.profiles as any
@@ -51,7 +69,9 @@ export async function GET(request: Request, { params }: { params: { id: string }
     profileMap[g.id] = { id: g.id, name: g.name, initials: g.initials, avatarUrl: null, phone: null }
   }
 
-  // ── 4. Build net balance map ──
+  console.log(`[balances] group=${params.id} expenses=${expenseIds.length} splits=${splits.length} members=${members?.length ?? 0} guests=${guests?.length ?? 0}`)
+
+  // ── 5. Build net balance map ──────────────────────────────────
   // key = "<smallerUUID>|<largerUUID>", positive means smaller owes larger
   const netMap = new Map<string, number>()
 
@@ -62,23 +82,20 @@ export async function GET(request: Request, { params }: { params: { id: string }
     netMap.set(key, (netMap.get(key) ?? 0) + sign * amount)
   }
 
-  // Each split row: the split user owes the expense payer their share
-  // (excluding rows where the split user IS the payer — they don't owe themselves)
-  for (const s of splits ?? []) {
-    const exp = s.expenses as any
-    if (!exp) continue
-    if (s.user_id === exp.paid_by) continue        // payer's own split — skip
-    addToMap(s.user_id, exp.paid_by, Number(s.amount))
+  for (const s of splits) {
+    const paidBy = payerByExpense[s.expense_id]
+    if (!paidBy) continue
+    if (s.user_id === paidBy) continue   // payer's own split — skip
+    addToMap(s.user_id, paidBy, Number(s.amount))
   }
 
-  // Subtract settled amounts
   for (const s of settled ?? []) {
     addToMap(s.from_user_id, s.to_user_id, -Number(s.amount))
   }
 
-  // ── 5. Convert net map to balance array ──
+  // ── 6. Convert to balance array ───────────────────────────────
   const balances = Array.from(netMap.entries())
-    .filter(([, amount]) => Math.abs(amount) > 0.5)   // ignore sub-rupiah rounding
+    .filter(([, amount]) => Math.abs(amount) > 0.5)
     .map(([key, amount]) => {
       const [a, b] = key.split("|")
       const from = amount > 0 ? a : b
@@ -94,6 +111,6 @@ export async function GET(request: Request, { params }: { params: { id: string }
       }
     })
 
-  console.log(`[balances] group=${params.id} splits=${splits?.length ?? 0} balances=${balances.length}`)
+  console.log(`[balances] → ${balances.length} balance entries`)
   return NextResponse.json(balances)
 }
