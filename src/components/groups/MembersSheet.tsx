@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import {
@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { toast } from "sonner"
-import { UserPlus, Search, Loader2, Check } from "lucide-react"
+import { UserPlus, Loader2, Trash2 } from "lucide-react"
 import type { User } from "@/types"
 
 const avatarColors = [
@@ -22,80 +22,66 @@ const avatarColors = [
   "bg-violet-500", "bg-rose-500", "bg-cyan-500",
 ]
 
-interface SearchProfile {
-  id: string
-  name: string
-  initials: string
-  phone?: string
-}
+interface GuestMember { id: string; name: string; initials: string }
 
 interface Props {
   groupId: string
   members: User[]
-  onMemberAdded?: () => void
 }
 
-export function MembersSheet({ groupId, members, onMemberAdded }: Props) {
+export function MembersSheet({ groupId, members }: Props) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
-  const [query, setQuery] = useState("")
-  const [results, setResults] = useState<SearchProfile[]>([])
-  const [searching, setSearching] = useState(false)
-  const [adding, setAdding] = useState<string | null>(null)
-  const [addedIds, setAddedIds] = useState<Set<string>>(new Set())
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  const existingIds = new Set(members.map((m) => m.id))
+  const [guests, setGuests] = useState<GuestMember[]>([])
+  const [guestName, setGuestName] = useState("")
+  const [adding, setAdding] = useState(false)
+  const [removingId, setRemovingId] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!open) {
-      setQuery("")
-      setResults([])
-      setAddedIds(new Set())
-    }
-  }, [open])
+    if (!open) return
+    fetch(`/api/groups/${groupId}/guests`)
+      .then((r) => r.json())
+      .then((data) => { if (Array.isArray(data)) setGuests(data) })
+      .catch(() => {})
+  }, [open, groupId])
 
-  useEffect(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current)
-    if (query.length < 2) { setResults([]); return }
-
-    debounceRef.current = setTimeout(async () => {
-      setSearching(true)
-      try {
-        const res = await fetch(`/api/profiles?q=${encodeURIComponent(query)}`)
-        const data = await res.json()
-        if (Array.isArray(data)) setResults(data)
-      } catch {
-        // ignore
-      } finally {
-        setSearching(false)
-      }
-    }, 350)
-
-    return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
-  }, [query])
-
-  async function handleAdd(profile: SearchProfile) {
-    setAdding(profile.id)
+  async function handleAddGuest() {
+    const name = guestName.trim()
+    if (!name || adding) return
+    setAdding(true)
     try {
-      const res = await fetch(`/api/groups/${groupId}/members`, {
+      const res = await fetch(`/api/groups/${groupId}/guests`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: profile.id }),
+        body: JSON.stringify({ name }),
       })
       const data = await res.json()
-      if (!res.ok) {
-        toast.error(data.error ?? "Failed to add member")
-        return
-      }
-      setAddedIds((prev) => new Set([...prev, profile.id]))
-      toast.success(`${profile.name} added to group`)
-      onMemberAdded?.()
-      router.refresh()
+      if (!res.ok) { toast.error(data.error ?? "Failed to add guest"); return }
+      setGuests((prev) => [...prev, data])
+      setGuestName("")
+      toast.success(`${name} added!`)
     } catch {
-      toast.error("Failed to add member")
+      toast.error("Failed to add guest")
     } finally {
-      setAdding(null)
+      setAdding(false)
+    }
+  }
+
+  async function handleRemoveGuest(guest: GuestMember) {
+    setRemovingId(guest.id)
+    try {
+      const res = await fetch(`/api/groups/${groupId}/guests`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ guestId: guest.id }),
+      })
+      if (!res.ok) { toast.error("Failed to remove"); return }
+      setGuests((prev) => prev.filter((g) => g.id !== guest.id))
+      toast.success(`${guest.name} removed`)
+    } catch {
+      toast.error("Failed to remove guest")
+    } finally {
+      setRemovingId(null)
     }
   }
 
@@ -124,17 +110,17 @@ export function MembersSheet({ groupId, members, onMemberAdded }: Props) {
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent side="bottom" className="rounded-t-2xl bg-card border-border/50 h-[80vh] p-0 flex flex-col">
           <SheetHeader className="px-4 pt-4 pb-3 shrink-0">
-            <SheetTitle>Group Members ({members.length})</SheetTitle>
+            <SheetTitle>Members ({members.length + guests.length})</SheetTitle>
           </SheetHeader>
 
           <ScrollArea className="flex-1 px-4 pb-6">
-            {/* Current members */}
+            {/* ── Registered members ── */}
+            <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-2">
+              Registered
+            </p>
             <div className="space-y-1 mb-4">
               {members.map((member, idx) => (
-                <div
-                  key={member.id}
-                  className="flex items-center gap-3 px-1 py-2.5 rounded-xl hover:bg-muted/50 transition-colors"
-                >
+                <div key={member.id} className="flex items-center gap-3 px-1 py-2.5 rounded-xl">
                   <Avatar className="h-10 w-10">
                     <AvatarFallback className={`text-sm text-white font-semibold ${avatarColors[idx % avatarColors.length]}`}>
                       {member.initials}
@@ -145,9 +131,7 @@ export function MembersSheet({ groupId, members, onMemberAdded }: Props) {
                     <p className="text-xs text-muted-foreground truncate">{member.phone || member.email}</p>
                   </div>
                   {idx === 0 && (
-                    <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-primary/15 text-primary">
-                      Admin
-                    </span>
+                    <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-primary/15 text-primary">Admin</span>
                   )}
                 </div>
               ))}
@@ -155,78 +139,58 @@ export function MembersSheet({ groupId, members, onMemberAdded }: Props) {
 
             <Separator className="mb-4" />
 
-            {/* Add member */}
-            <div className="space-y-3">
-              <p className="text-sm font-medium flex items-center gap-2">
-                <UserPlus className="h-4 w-4 text-primary" />
-                Add Member
-              </p>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search by name or phone..."
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  className="pl-9 bg-muted/50 border-border/50"
-                />
-                {searching && (
-                  <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
-                )}
+            {/* ── Guest members ── */}
+            <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-2">
+              Guests (no account needed)
+            </p>
+
+            {guests.length > 0 && (
+              <div className="space-y-1 mb-3">
+                {guests.map((guest) => (
+                  <div key={guest.id} className="flex items-center gap-3 px-1 py-2 rounded-xl hover:bg-muted/40">
+                    <Avatar className="h-9 w-9">
+                      <AvatarFallback className="text-xs bg-muted/70 text-muted-foreground font-semibold">
+                        {guest.initials}
+                      </AvatarFallback>
+                    </Avatar>
+                    <p className="flex-1 text-sm font-medium">{guest.name}</p>
+                    <button
+                      onClick={() => handleRemoveGuest(guest)}
+                      disabled={removingId === guest.id}
+                      className="h-8 w-8 flex items-center justify-center rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                    >
+                      {removingId === guest.id
+                        ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        : <Trash2 className="h-3.5 w-3.5" />}
+                    </button>
+                  </div>
+                ))}
               </div>
+            )}
 
-              {/* Search results */}
-              {results.length > 0 && (
-                <div className="space-y-1 rounded-xl border border-border/50 overflow-hidden">
-                  {results.map((profile) => {
-                    const alreadyMember = existingIds.has(profile.id)
-                    const justAdded = addedIds.has(profile.id)
-                    const isAdding = adding === profile.id
-                    const done = alreadyMember || justAdded
-
-                    return (
-                      <div key={profile.id} className="flex items-center gap-3 px-3 py-2.5 hover:bg-muted/50">
-                        <Avatar className="h-9 w-9">
-                          <AvatarFallback className="text-xs bg-muted">{profile.initials}</AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium">{profile.name}</p>
-                          {profile.phone && (
-                            <p className="text-xs text-muted-foreground">{profile.phone}</p>
-                          )}
-                        </div>
-                        <Button
-                          size="sm"
-                          variant={done ? "ghost" : "default"}
-                          disabled={done || isAdding}
-                          onClick={() => handleAdd(profile)}
-                          className="shrink-0 h-8"
-                        >
-                          {isAdding ? (
-                            <Loader2 className="h-3 w-3 animate-spin" />
-                          ) : done ? (
-                            <><Check className="h-3 w-3 mr-1" /> Added</>
-                          ) : (
-                            "Add"
-                          )}
-                        </Button>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-
-              {query.length >= 2 && !searching && results.length === 0 && (
-                <p className="text-sm text-muted-foreground text-center py-4">
-                  No users found for &ldquo;{query}&rdquo;
-                </p>
-              )}
-
-              {query.length < 2 && (
-                <p className="text-xs text-muted-foreground text-center py-2">
-                  Type at least 2 characters to search
-                </p>
-              )}
+            {/* ── Add guest input ── */}
+            <div className="flex gap-2 mt-1">
+              <Input
+                placeholder="Guest name (e.g. Alice)"
+                value={guestName}
+                onChange={(e) => setGuestName(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleAddGuest()}
+                className="bg-muted/50 border-border/50"
+              />
+              <Button
+                onClick={handleAddGuest}
+                disabled={!guestName.trim() || adding}
+                className="shrink-0 gap-1.5"
+              >
+                {adding
+                  ? <Loader2 className="h-4 w-4 animate-spin" />
+                  : <UserPlus className="h-4 w-4" />}
+                Add
+              </Button>
             </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              Guests appear in the receipt scanner and expense split but don&apos;t need an account.
+            </p>
           </ScrollArea>
         </SheetContent>
       </Sheet>

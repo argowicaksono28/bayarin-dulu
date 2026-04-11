@@ -22,6 +22,8 @@ export interface User {
   avatarUrl: string | null
   phone: string
   initials: string
+  /** True for guest members who have no account */
+  isGuest?: boolean
 }
 
 export interface Group {

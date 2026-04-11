@@ -92,12 +92,19 @@ export function AddExpenseForm({ groupId, onSuccess, initialValues, onReceiptSca
     supabase.auth.getUser().then(({ data }) => {
       if (data.user) setCurrentUserId(data.user.id)
     })
-    fetch(`/api/groups/${groupId}/members`)
-      .then((r) => r.json())
-      .then((data) => {
-        if (Array.isArray(data)) setMembers(data)
-      })
-      .catch(() => {})
+    Promise.all([
+      fetch(`/api/groups/${groupId}/members`).then((r) => r.json()),
+      fetch(`/api/groups/${groupId}/guests`).then((r) => r.json()),
+    ]).then(([realMembers, guests]) => {
+      const all = [
+        ...(Array.isArray(realMembers) ? realMembers : []),
+        ...(Array.isArray(guests) ? guests.map((g: any) => ({
+          id: g.id, name: g.name, initials: g.initials,
+          email: "", phone: "", avatarUrl: null, isGuest: true,
+        })) : []),
+      ]
+      setMembers(all)
+    }).catch(() => {})
   }, [groupId])
 
   const form = useForm<Values>({

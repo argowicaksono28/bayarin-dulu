@@ -25,10 +25,25 @@ export function AddExpenseButton({ groupId, open, onOpenChange }: Props) {
   const [receiptResult, setReceiptResult] = useState<ReceiptConfirmResult | null>(null)
 
   useEffect(() => {
-    fetch(`/api/groups/${groupId}/members`)
-      .then((r) => r.json())
-      .then((data) => { if (Array.isArray(data)) setMembers(data) })
-      .catch(() => {})
+    // Fetch real members + guests and merge into a single list
+    Promise.all([
+      fetch(`/api/groups/${groupId}/members`).then((r) => r.json()),
+      fetch(`/api/groups/${groupId}/guests`).then((r) => r.json()),
+    ]).then(([realMembers, guests]) => {
+      const all: User[] = [
+        ...(Array.isArray(realMembers) ? realMembers : []),
+        ...(Array.isArray(guests) ? guests.map((g: any) => ({
+          id: g.id,
+          name: g.name,
+          initials: g.initials,
+          email: "",
+          phone: "",
+          avatarUrl: null,
+          isGuest: true,
+        })) : []),
+      ]
+      setMembers(all)
+    }).catch(() => {})
   }, [groupId])
 
   function handleReceiptScanned(receipt: ScannedReceipt) {
