@@ -69,7 +69,23 @@ export async function GET(request: Request, { params }: { params: { id: string }
     profileMap[g.id] = { id: g.id, name: g.name, initials: g.initials, avatarUrl: null, phone: null }
   }
 
-  console.log(`[balances] group=${params.id} expenses=${expenseIds.length} splits=${splits.length} members=${members?.length ?? 0} guests=${guests?.length ?? 0}`)
+  // Fallback: resolve any split user_ids still missing from profileMap
+  // by querying guest_members directly by ID — covers cases where the
+  // group_id-based query above returns empty due to RLS context issues.
+  const unknownIds = [...new Set(splits.map((s) => s.user_id))].filter((id) => !profileMap[id])
+  if (unknownIds.length > 0) {
+    const { data: extraGuests, error: extraErr } = await supabase
+      .from("guest_members")
+      .select("id, name, initials")
+      .in("id", unknownIds)
+    if (extraErr) console.error("[balances] extraGuests error:", extraErr)
+    for (const g of extraGuests ?? []) {
+      profileMap[g.id] = { id: g.id, name: g.name, initials: g.initials, avatarUrl: null, phone: null }
+    }
+    console.log(`[balances] fallback resolved ${extraGuests?.length ?? 0}/${unknownIds.length} unknown ids`)
+  }
+
+  console.log(`[balances] group=${params.id} expenses=${expenseIds.length} splits=${splits.length} members=${members?.length ?? 0} guests=${guests?.length ?? 0} unresolved=${unknownIds.filter(id => !profileMap[id]).length}`)
 
   // ── 5. Build net balance map ──────────────────────────────────
   // key = "<smallerUUID>|<largerUUID>", positive means smaller owes larger
