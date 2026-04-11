@@ -18,7 +18,7 @@ export async function POST(request: Request) {
   const mediaType = (file.type || "image/jpeg") as "image/jpeg" | "image/png" | "image/gif" | "image/webp"
 
   const body = {
-    model: "claude-3-5-sonnet-20241022",
+    model: "claude-haiku-4-5-20251001",
     max_tokens: 1024,
     messages: [
       {
