@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo, useEffect, useCallback } from "react"
 import {
   Sheet,
   SheetContent,
@@ -14,7 +14,7 @@ import { Separator } from "@/components/ui/separator"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
 import { formatIDR } from "@/lib/formatters"
-import { Store, Check, Pencil } from "lucide-react"
+import { Store, Check, Pencil, X } from "lucide-react"
 import type { User } from "@/types"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -54,15 +54,15 @@ interface Props {
   onConfirm: (result: ReceiptConfirmResult) => void
 }
 
-// ─── Helper ───────────────────────────────────────────────────────────────────
+// ─── Split helper ─────────────────────────────────────────────────────────────
 
-function computeItemSplits(
+function computeSplits(
   items: ScannedItem[],
   assignments: Record<string, string[]>,
   members: User[],
-  grandTotal: number
+  grandTotal: number,
 ): Record<string, number> {
-  if (members.length === 0) return {}
+  if (members.length === 0 || grandTotal <= 0) return {}
 
   const memberItemTotals: Record<string, number> = {}
   members.forEach((m) => { memberItemTotals[m.id] = 0 })
@@ -78,52 +78,70 @@ function computeItemSplits(
   const itemsSubtotal = Object.values(memberItemTotals).reduce((a, b) => a + b, 0)
   const ids = members.map((m) => m.id)
   const result: Record<string, number> = {}
-  let assigned = 0
+  let distributed = 0
 
   for (let i = 0; i < ids.length - 1; i++) {
     const proportion = itemsSubtotal > 0 ? memberItemTotals[ids[i]] / itemsSubtotal : 1 / ids.length
     const rounded = Math.round(proportion * grandTotal)
     result[ids[i]] = rounded
-    assigned += rounded
+    distributed += rounded
   }
-  result[ids[ids.length - 1]] = Math.max(0, grandTotal - assigned)
+  result[ids[ids.length - 1]] = Math.max(0, grandTotal - distributed)
   return result
 }
 
-// ─── Editable item row ────────────────────────────────────────────────────────
+// ─── Item row ─────────────────────────────────────────────────────────────────
 
 function ItemRow({
   item,
   members,
-  isAssigned,
+  getAssigned,
   onToggleMember,
   onUpdate,
 }: {
   item: ScannedItem
   members: User[]
-  isAssigned: (memberId: string) => boolean
+  getAssigned: () => string[]
   onToggleMember: (memberId: string) => void
-  onUpdate: (field: "name" | "amount", value: string | number) => void
+  onUpdate: (updates: Partial<Pick<ScannedItem, "name" | "amount">>) => void
 }) {
   const [editing, setEditing] = useState(false)
-  const [draftName, setDraftName] = useState(item.name)
-  const [draftAmount, setDraftAmount] = useState(String(item.amount))
+  const [draftName, setDraftName] = useState("")
+  const [draftAmount, setDraftAmount] = useState("")
+
+  function openEdit() {
+    setDraftName(item.name)
+    setDraftAmount(String(item.amount))
+    setEditing(true)
+  }
 
   function commitEdit() {
-    onUpdate("name", draftName.trim() || item.name)
-    onUpdate("amount", parseFloat(draftAmount) || item.amount)
+    const newName = draftName.trim() || item.name
+    const newAmount = parseFloat(draftAmount)
+    onUpdate({
+      name: newName,
+      amount: isNaN(newAmount) || newAmount <= 0 ? item.amount : newAmount,
+    })
     setEditing(false)
   }
+
+  function cancelEdit() {
+    setEditing(false)
+  }
+
+  const assigned = getAssigned()
 
   return (
     <div className="py-3 border-b border-border/30 last:border-0">
       {editing ? (
-        <div className="space-y-2 mb-2">
+        <div className="space-y-2">
           <Input
+            autoFocus
             value={draftName}
             onChange={(e) => setDraftName(e.target.value)}
             className="h-8 text-sm bg-muted/50"
             placeholder="Item name"
+            onKeyDown={(e) => { if (e.key === "Enter") commitEdit(); if (e.key === "Escape") cancelEdit() }}
           />
           <div className="flex gap-2">
             <div className="relative flex-1">
@@ -133,44 +151,50 @@ function ItemRow({
                 value={draftAmount}
                 onChange={(e) => setDraftAmount(e.target.value)}
                 className="h-8 pl-7 text-sm bg-muted/50"
+                onKeyDown={(e) => { if (e.key === "Enter") commitEdit(); if (e.key === "Escape") cancelEdit() }}
               />
             </div>
+            <Button size="sm" variant="ghost" className="h-8 px-2" onClick={cancelEdit}><X className="h-4 w-4" /></Button>
             <Button size="sm" className="h-8" onClick={commitEdit}>Done</Button>
           </div>
         </div>
       ) : (
-        <div className="flex items-start justify-between gap-2 mb-2">
+        <div className="flex items-center gap-2">
+          {/* Name + amount (tap to edit) */}
           <button
             type="button"
-            onClick={() => { setDraftName(item.name); setDraftAmount(String(item.amount)); setEditing(true) }}
-            className="flex-1 min-w-0 text-left group"
+            onClick={openEdit}
+            className="flex-1 min-w-0 text-left group flex items-start gap-2"
           >
-            <p className="text-sm font-medium leading-tight group-hover:text-primary transition-colors">
-              {item.qty > 1 && <span className="text-muted-foreground mr-1">{item.qty}×</span>}
-              {item.name}
-              <Pencil className="inline ml-1.5 h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-            </p>
-            <p className="text-xs text-muted-foreground mt-0.5">{formatIDR(item.amount)}</p>
+            <Pencil className="h-3 w-3 mt-1 text-muted-foreground/40 group-hover:text-primary shrink-0 transition-colors" />
+            <div className="min-w-0">
+              <p className="text-sm font-medium leading-tight group-hover:text-primary transition-colors">
+                {item.qty > 1 && <span className="text-muted-foreground mr-1">{item.qty}×</span>}
+                {item.name}
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">{formatIDR(item.amount)}</p>
+            </div>
           </button>
-          {/* Member chips */}
+
+          {/* Member assignment chips */}
           <div className="flex gap-1 flex-wrap justify-end shrink-0">
             {members.map((m) => {
-              const assigned = isAssigned(m.id)
+              const isOn = assigned.includes(m.id)
               return (
                 <button
                   key={m.id}
                   type="button"
                   onClick={() => onToggleMember(m.id)}
+                  title={m.name}
                   className={cn(
                     "relative h-8 w-8 rounded-full border-2 transition-all flex items-center justify-center",
-                    assigned ? "border-primary ring-2 ring-primary/30" : "border-border/50 opacity-30"
+                    isOn ? "border-primary ring-2 ring-primary/30" : "border-border/50 opacity-30",
                   )}
-                  title={m.name}
                 >
                   <Avatar className="h-7 w-7">
                     <AvatarFallback className="text-[9px] bg-muted">{m.initials}</AvatarFallback>
                   </Avatar>
-                  {assigned && (
+                  {isOn && (
                     <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-primary flex items-center justify-center">
                       <Check className="h-2 w-2 text-primary-foreground" />
                     </span>
@@ -185,28 +209,31 @@ function ItemRow({
   )
 }
 
-// ─── Main Component ───────────────────────────────────────────────────────────
+// ─── Main component ───────────────────────────────────────────────────────────
 
 export function ReceiptScannerSheet({ open, onOpenChange, receipt, members, onConfirm }: Props) {
+  // Editable local copy of receipt data
   const [items, setItems] = useState<ScannedItem[]>([])
-  const [taxPercent, setTaxPercent] = useState(0)
-  const [servicePercent, setServicePercent] = useState(0)
   const [taxLabel, setTaxLabel] = useState("Tax")
   const [restaurantName, setRestaurantName] = useState("")
+  // Store actual amounts (not just %) as the source of truth
+  const [taxAmount, setTaxAmount] = useState(0)
+  const [serviceAmount, setServiceAmount] = useState(0)
   const [assignments, setAssignments] = useState<Record<string, string[]>>({})
 
-  // Sync from prop when receipt changes
+  // Reset all local state when a new receipt is loaded
   useEffect(() => {
     if (!receipt) return
-    setItems(receipt.items)
-    setTaxPercent(receipt.taxPercent)
-    setServicePercent(receipt.serviceChargePercent)
-    setTaxLabel(receipt.taxLabel || "Tax")
-    setRestaurantName(receipt.restaurantName)
+    setItems(receipt.items.map((i) => ({ ...i })))
+    setTaxLabel(receipt.taxLabel || "PB1")
+    setRestaurantName(receipt.restaurantName || "")
+    // Use actual scanned amounts — preserves receipt.total exactly
+    setTaxAmount(receipt.tax)
+    setServiceAmount(receipt.serviceCharge)
     setAssignments({})
   }, [receipt])
 
-  function toggleMember(itemId: string, memberId: string) {
+  const toggleMember = useCallback((itemId: string, memberId: string) => {
     setAssignments((prev) => {
       const current = prev[itemId] ?? members.map((m) => m.id)
       const next = current.includes(memberId)
@@ -214,36 +241,37 @@ export function ReceiptScannerSheet({ open, onOpenChange, receipt, members, onCo
         : [...current, memberId]
       return { ...prev, [itemId]: next.length > 0 ? next : members.map((m) => m.id) }
     })
-  }
+  }, [members])
 
-  function updateItem(id: string, field: "name" | "amount", value: string | number) {
-    setItems((prev) => prev.map((item) =>
-      item.id === id ? { ...item, [field]: value } : item
-    ))
-  }
+  const updateItem = useCallback((id: string, updates: Partial<Pick<ScannedItem, "name" | "amount">>) => {
+    setItems((prev) => prev.map((item) => item.id === id ? { ...item, ...updates } : item))
+  }, [])
 
-  // Recalculate totals from edited items + percentages
-  const subtotal = items.reduce((sum, item) => sum + item.amount, 0)
-  const taxAmount = Math.round(subtotal * taxPercent / 100)
-  const serviceAmount = Math.round(subtotal * servicePercent / 100)
-  const grandTotal = subtotal + taxAmount + serviceAmount
+  // Recompute totals live from edited items + actual tax/service amounts
+  const itemsSubtotal = items.reduce((sum, item) => sum + item.amount, 0)
+  const grandTotal = itemsSubtotal + taxAmount + serviceAmount
 
-  const memberSplits = useMemo(() => {
-    return computeItemSplits(items, assignments, members, grandTotal)
-  }, [items, assignments, members, grandTotal])
+  // Derived % labels for display only
+  const taxPercent = itemsSubtotal > 0 ? Math.round((taxAmount / itemsSubtotal) * 100 * 10) / 10 : 0
+  const servicePercent = itemsSubtotal > 0 ? Math.round((serviceAmount / itemsSubtotal) * 100 * 10) / 10 : 0
+
+  const memberSplits = useMemo(
+    () => computeSplits(items, assignments, members, grandTotal),
+    [items, assignments, members, grandTotal],
+  )
 
   function handleConfirm() {
-    if (!receipt) return
     onConfirm({
       description: restaurantName || "Restaurant",
-      baseAmount: subtotal,
-      taxPercent,
+      baseAmount: itemsSubtotal,
+      taxPercent: taxPercent,
       serviceChargePercent: servicePercent,
       splits: memberSplits,
     })
     onOpenChange(false)
   }
 
+  // Don't render at all if no receipt — but keep hooks above this guard
   if (!receipt) return null
 
   return (
@@ -252,107 +280,107 @@ export function ReceiptScannerSheet({ open, onOpenChange, receipt, members, onCo
         side="bottom"
         className="rounded-t-2xl bg-card border-border/50 h-[92vh] p-0 flex flex-col"
       >
-        <SheetHeader className="px-4 pt-4 pb-2 shrink-0">
-          <SheetTitle className="flex items-center gap-2">
-            <Store className="h-4 w-4 text-muted-foreground" />
-            {restaurantName || "Receipt Split"}
+        <SheetHeader className="px-4 pt-4 pb-1 shrink-0">
+          <SheetTitle className="flex items-center gap-2 text-base">
+            <Store className="h-4 w-4 text-muted-foreground shrink-0" />
+            <span className="truncate">{restaurantName || "Receipt Split"}</span>
           </SheetTitle>
           <p className="text-xs text-muted-foreground">
-            Tap an item to edit name/amount · Tap avatars to assign members
+            ✏️ Tap item to edit · 👤 Tap avatar to assign · Edit tax/service below
           </p>
         </SheetHeader>
 
         <ScrollArea className="flex-1 px-4">
-          {/* ── Line items ── */}
-          <div className="pb-2">
+          {/* Items */}
+          <div className="pb-1">
             {items.map((item) => (
               <ItemRow
                 key={item.id}
                 item={item}
                 members={members}
-                isAssigned={(mid) => {
-                  const a = assignments[item.id] ?? members.map((m) => m.id)
-                  return a.includes(mid)
-                }}
+                getAssigned={() => assignments[item.id] ?? members.map((m) => m.id)}
                 onToggleMember={(mid) => toggleMember(item.id, mid)}
-                onUpdate={(field, value) => updateItem(item.id, field, value)}
+                onUpdate={(updates) => updateItem(item.id, updates)}
               />
             ))}
           </div>
 
-          {/* ── Charges (editable tax/service) ── */}
-          <div className="mt-2 rounded-xl bg-muted/30 border border-border/30 divide-y divide-border/30">
+          {/* Totals */}
+          <div className="mt-3 rounded-xl bg-muted/30 border border-border/30 divide-y divide-border/30">
             <div className="flex justify-between items-center px-3 py-2 text-sm">
               <span className="text-muted-foreground">Subtotal</span>
-              <span>{formatIDR(subtotal)}</span>
+              <span className="tabular-nums">{formatIDR(itemsSubtotal)}</span>
             </div>
 
-            {/* Tax row — editable percent */}
-            <div className="flex items-center gap-2 px-3 py-2 text-sm">
-              <span className="text-muted-foreground flex-1">{taxLabel}</span>
-              <div className="flex items-center gap-1">
+            {/* Tax — edit actual amount, percent shown for reference */}
+            <div className="flex items-center gap-2 px-3 py-1.5 text-sm">
+              <span className="text-muted-foreground flex-1">
+                {taxLabel}
+                {taxPercent > 0 && <span className="ml-1 text-xs opacity-60">({taxPercent}%)</span>}
+              </span>
+              <div className="relative w-28">
+                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">Rp</span>
                 <Input
                   type="number"
                   min={0}
-                  max={100}
-                  value={taxPercent}
-                  onChange={(e) => setTaxPercent(parseFloat(e.target.value) || 0)}
-                  className="h-7 w-14 text-xs text-center bg-muted/50 border-border/50 px-1"
+                  value={taxAmount || ""}
+                  placeholder="0"
+                  onChange={(e) => setTaxAmount(parseFloat(e.target.value) || 0)}
+                  className="h-7 pl-7 text-xs text-right tabular-nums bg-muted/50 border-border/50"
                 />
-                <span className="text-xs text-muted-foreground">%</span>
               </div>
-              <span className="w-20 text-right tabular-nums">{formatIDR(taxAmount)}</span>
             </div>
 
-            {/* Service row — editable percent */}
-            <div className="flex items-center gap-2 px-3 py-2 text-sm">
-              <span className="text-muted-foreground flex-1">Service</span>
-              <div className="flex items-center gap-1">
+            {/* Service — edit actual amount */}
+            <div className="flex items-center gap-2 px-3 py-1.5 text-sm">
+              <span className="text-muted-foreground flex-1">
+                Service
+                {servicePercent > 0 && <span className="ml-1 text-xs opacity-60">({servicePercent}%)</span>}
+              </span>
+              <div className="relative w-28">
+                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">Rp</span>
                 <Input
                   type="number"
                   min={0}
-                  max={100}
-                  value={servicePercent}
-                  onChange={(e) => setServicePercent(parseFloat(e.target.value) || 0)}
-                  className="h-7 w-14 text-xs text-center bg-muted/50 border-border/50 px-1"
+                  value={serviceAmount || ""}
+                  placeholder="0"
+                  onChange={(e) => setServiceAmount(parseFloat(e.target.value) || 0)}
+                  className="h-7 pl-7 text-xs text-right tabular-nums bg-muted/50 border-border/50"
                 />
-                <span className="text-xs text-muted-foreground">%</span>
               </div>
-              <span className="w-20 text-right tabular-nums">{formatIDR(serviceAmount)}</span>
             </div>
 
             <div className="flex justify-between px-3 py-2.5 font-semibold text-sm">
               <span>Total</span>
-              <span>{formatIDR(grandTotal)}</span>
+              <span className="tabular-nums">{formatIDR(grandTotal)}</span>
             </div>
           </div>
 
-          {/* ── Per-member summary ── */}
+          {/* Per-member breakdown */}
           {members.length > 0 && (
-            <div className="mt-4 space-y-2 mb-2">
-              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
+            <div className="mt-4 mb-2 space-y-1">
+              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-2">
                 Each person pays
               </p>
               {members.map((m) => (
-                <div key={m.id} className="flex items-center gap-3 py-1">
+                <div key={m.id} className="flex items-center gap-3 py-1.5">
                   <Avatar className="h-7 w-7 shrink-0">
                     <AvatarFallback className="text-[9px] bg-muted">{m.initials}</AvatarFallback>
                   </Avatar>
                   <span className="flex-1 text-sm truncate">{m.name}</span>
-                  <span className="text-sm font-medium tabular-nums">
+                  <span className="text-sm font-semibold tabular-nums">
                     {formatIDR(memberSplits[m.id] ?? 0)}
                   </span>
                 </div>
               ))}
             </div>
           )}
-
           <div className="h-4" />
         </ScrollArea>
 
         <Separator className="shrink-0" />
         <div className="px-4 py-3 shrink-0">
-          <Button className="w-full" onClick={handleConfirm}>
+          <Button className="w-full font-semibold" onClick={handleConfirm}>
             Use This Split — {formatIDR(grandTotal)}
           </Button>
         </div>
