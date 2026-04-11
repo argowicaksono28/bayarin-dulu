@@ -112,12 +112,22 @@ export async function POST(request: Request, { params }: { params: { id: string 
     .neq("user_id", user.id)
 
   if (members && members.length > 0) {
+    const { data: actorProfile } = await supabase
+      .from("profiles")
+      .select("name")
+      .eq("id", user.id)
+      .single()
+    const actorName = actorProfile?.name ?? "Someone"
+    const formattedAmount = new Intl.NumberFormat("id-ID", {
+      style: "currency", currency: "IDR", minimumFractionDigits: 0,
+    }).format(amount)
+
     await supabase.from("notifications").insert(
       members.map((m) => ({
         user_id: m.user_id,
         type: "expense_added",
         title: "New expense added",
-        body: `${description} — ${amount}`,
+        body: `${actorName} added "${description}" for ${formattedAmount}`,
         group_id: params.id,
         actor_id: user.id,
       }))

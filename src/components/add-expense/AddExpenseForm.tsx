@@ -7,7 +7,7 @@ import { z } from "zod"
 import { toast } from "sonner"
 import { format } from "date-fns"
 import { enUS as enLocale } from "date-fns/locale"
-import { CalendarIcon, Calculator, Receipt, Loader2 } from "lucide-react"
+import { CalendarIcon, Calculator, Receipt, Loader2, ScanLine } from "lucide-react"
 import {
   Form,
   FormControl,
@@ -80,6 +80,7 @@ export function AddExpenseForm({ groupId, onSuccess, initialValues }: Props) {
   const [serviceCharge, setServiceCharge] = useState(initialValues?.serviceCharge ?? 0)
   const [showCalc, setShowCalc] = useState(false)
   const [showSuggestions, setShowSuggestions] = useState(false)
+  const [scanning, setScanning] = useState(false)
 
   useEffect(() => {
     const supabase = createClient()
@@ -406,10 +407,57 @@ export function AddExpenseForm({ groupId, onSuccess, initialValues }: Props) {
         />
 
         {!isEdit && (
-          <Button type="button" variant="outline" className="w-full gap-2 border-border/50 hover:bg-muted text-muted-foreground">
-            <Receipt className="h-4 w-4" />
-            Upload Receipt (coming soon)
-          </Button>
+          <div>
+            <input
+              id="receipt-upload"
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="sr-only"
+              onChange={async (e) => {
+                const file = e.target.files?.[0]
+                if (!file) return
+                setScanning(true)
+                try {
+                  const fd = new FormData()
+                  fd.append("file", file)
+                  const res = await fetch("/api/receipt-scan", { method: "POST", body: fd })
+                  const data = await res.json()
+                  if (!res.ok) {
+                    toast.error(data.error ?? "Failed to scan receipt")
+                    return
+                  }
+                  if (data.amount > 0) form.setValue("amount", data.amount)
+                  if (data.description) form.setValue("description", data.description)
+                  toast.success("Receipt scanned!")
+                } catch {
+                  toast.error("Failed to scan receipt")
+                } finally {
+                  setScanning(false)
+                  e.target.value = ""
+                }
+              }}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full gap-2 border-border/50 hover:bg-muted text-muted-foreground"
+              disabled={scanning}
+              onClick={() => document.getElementById("receipt-upload")?.click()}
+            >
+              {scanning ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Scanning receipt…
+                </>
+              ) : (
+                <>
+                  <ScanLine className="h-4 w-4" />
+                  Scan Receipt
+                </>
+              )}
+            </Button>
+          </div>
         )}
 
         {/* Submit */}

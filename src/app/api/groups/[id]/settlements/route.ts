@@ -36,11 +36,21 @@ export async function POST(request: Request, { params }: { params: { id: string 
   })
 
   // Notify the recipient
+  const { data: actorProfile } = await supabase
+    .from("profiles")
+    .select("name")
+    .eq("id", user.id)
+    .single()
+  const actorName = actorProfile?.name ?? "Someone"
+  const formattedAmount = new Intl.NumberFormat("id-ID", {
+    style: "currency", currency: "IDR", minimumFractionDigits: 0,
+  }).format(amount)
+
   await supabase.from("notifications").insert({
     user_id: toUserId,
     type: "settlement_reminder",
     title: "Payment received",
-    body: `You received a payment of ${amount}`,
+    body: `${actorName} paid you ${formattedAmount}`,
     group_id: params.id,
     actor_id: user.id,
   })
