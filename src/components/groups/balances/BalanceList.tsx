@@ -54,7 +54,20 @@ export function BalanceList({ groupId }: Props) {
     )
   }
 
-  const simplifiedList = simplifyDebts(balances)
+  // Build a profile lookup from the raw (non-simplified) balances
+  const profileLookup: Record<string, Balance["fromProfile"]> = {}
+  for (const b of balances) {
+    if (b.fromProfile) profileLookup[b.fromUserId] = b.fromProfile
+    if (b.toProfile)   profileLookup[b.toUserId]   = b.toProfile
+  }
+
+  // simplifyDebts creates new Balance objects without profiles — re-attach them
+  const simplifiedList = simplifyDebts(balances).map((b) => ({
+    ...b,
+    fromProfile: profileLookup[b.fromUserId] ?? null,
+    toProfile:   profileLookup[b.toUserId]   ?? null,
+  }))
+
   const displayed = simplified ? simplifiedList : balances
 
   if (displayed.length === 0 && simplified) {
