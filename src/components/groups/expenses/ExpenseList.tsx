@@ -68,7 +68,7 @@ export function ExpenseList({ groupId, onAddExpense }: Props) {
 
     // Subscribe to realtime changes on expenses for this group
     const channel = supabase
-      .channel(`expenses:group:${groupId}`)
+      .channel(`expenses:group:${groupId}:${Date.now()}`)
       .on(
         "postgres_changes" as any,
         {

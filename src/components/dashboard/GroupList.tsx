@@ -34,7 +34,7 @@ export function GroupList() {
 
     // Re-fetch groups when expenses or settlements change (balance updates)
     const channel = supabase
-      .channel("dashboard:realtime")
+      .channel(`dashboard:realtime:${Date.now()}`)
       .on(
         "postgres_changes" as any,
         { event: "*", schema: "public", table: "expenses" },
