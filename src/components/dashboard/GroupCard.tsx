@@ -2,6 +2,7 @@ import Link from "next/link"
 import { formatIDR, formatRelative } from "@/lib/formatters"
 import type { Group } from "@/types"
 import { cn } from "@/lib/utils"
+import { Users } from "lucide-react"
 
 interface Props {
   group: Group
@@ -14,12 +15,12 @@ export function GroupCard({ group }: Props) {
   return (
     <Link href={`/groups/${group.id}`} className="block">
       <div className="flex items-center gap-4 px-4 py-4 hover:bg-white/5 dark:hover:bg-white/5 hover:bg-black/5 transition-colors rounded-lg cursor-pointer">
-        {/* Group emoji + cover color */}
+        {/* Group icon — monochrome icon on cover color */}
         <div className={cn(
-          "h-10 w-10 rounded-xl flex items-center justify-center shrink-0 text-xl",
+          "h-10 w-10 rounded-xl flex items-center justify-center shrink-0",
           group.coverColor || "bg-violet-500"
         )}>
-          {group.emoji || "🎉"}
+          <Users className="h-5 w-5 text-white" />
         </div>
 
         {/* Info */}

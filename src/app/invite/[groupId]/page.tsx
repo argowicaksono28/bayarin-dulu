@@ -101,7 +101,7 @@ export default function InvitePage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-6">
+    <div className="flex items-center justify-center p-6 py-20">
       <div className="max-w-sm w-full space-y-6 text-center">
         {(state === "loading" || state === "joining") && (
           <>
