@@ -44,6 +44,11 @@ export interface ReceiptConfirmResult {
   taxPercent: number
   serviceChargePercent: number
   splits: Record<string, number>
+  receiptData: {
+    restaurantName: string
+    items: { name: string; qty: number; amount: number }[]
+    subtotal: number
+  }
 }
 
 interface Props {
@@ -267,6 +272,11 @@ export function ReceiptScannerSheet({ open, onOpenChange, receipt, members, onCo
       taxPercent: taxPercent,
       serviceChargePercent: servicePercent,
       splits: memberSplits,
+      receiptData: {
+        restaurantName,
+        items: items.map(({ name, qty, amount }) => ({ name, qty, amount })),
+        subtotal: itemsSubtotal,
+      },
     })
     onOpenChange(false)
   }

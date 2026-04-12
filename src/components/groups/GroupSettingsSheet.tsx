@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Settings, UserPlus, Loader2, LogOut } from "lucide-react"
+import { Settings, UserPlus, Loader2, LogOut, Link, Copy, Check, Eye, EyeOff } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { useRouter } from "next/navigation"
@@ -47,6 +47,13 @@ export function GroupSettingsSheet({ group }: Props) {
   const [loading, setLoading] = useState(false)
   const [leavePending, setLeavePending] = useState(false)
   const [leaveConfirm, setLeaveConfirm] = useState(false)
+  const [viewToken, setViewToken] = useState<string | null>(group.publicViewToken ?? null)
+  const [tokenLoading, setTokenLoading] = useState(false)
+  const [copied, setCopied] = useState(false)
+
+  const viewUrl = viewToken && typeof window !== "undefined"
+    ? `${window.location.origin}/view/${group.id}?token=${viewToken}`
+    : ""
 
   const selectedIcon = GROUP_ICON_OPTIONS.find((o) => o.key === emoji) ?? GROUP_ICON_OPTIONS[0]
   const PreviewIcon = selectedIcon.icon
@@ -68,6 +75,33 @@ export function GroupSettingsSheet({ group }: Props) {
       const data = await res.json()
       toast.error(data.error ?? "Failed to save settings")
     }
+  }
+
+  async function handleToggleViewLink() {
+    setTokenLoading(true)
+    if (viewToken) {
+      await fetch(`/api/groups/${group.id}/view-token`, { method: "DELETE" })
+      setViewToken(null)
+      toast.success("View-only link disabled")
+    } else {
+      const res = await fetch(`/api/groups/${group.id}/view-token`, { method: "POST" })
+      const data = await res.json()
+      if (res.ok) {
+        setViewToken(data.token)
+        toast.success("View-only link created")
+      } else {
+        toast.error(data.error ?? "Failed to create link")
+      }
+    }
+    setTokenLoading(false)
+  }
+
+  async function handleCopyViewLink() {
+    if (!viewUrl) return
+    await navigator.clipboard.writeText(viewUrl)
+    setCopied(true)
+    toast.success("Link copied!")
+    setTimeout(() => setCopied(false), 2000)
   }
 
   async function handleLeave() {
@@ -178,6 +212,55 @@ export function GroupSettingsSheet({ group }: Props) {
                   </span>
                 ) : "Save Changes"}
               </Button>
+
+              <Separator className="bg-border/40" />
+
+              {/* View-only link */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Eye className="h-4 w-4 text-muted-foreground" />
+                    <p className="text-sm font-medium">View-Only Link</p>
+                  </div>
+                  <button
+                    onClick={handleToggleViewLink}
+                    disabled={tokenLoading}
+                    className={cn(
+                      "text-xs px-3 py-1 rounded-full border transition-colors font-medium",
+                      viewToken
+                        ? "border-primary text-primary bg-primary/10 hover:bg-primary/20"
+                        : "border-border/50 text-muted-foreground hover:bg-muted"
+                    )}
+                  >
+                    {tokenLoading ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : viewToken ? (
+                      <span className="flex items-center gap-1"><EyeOff className="h-3 w-3" /> Disable</span>
+                    ) : (
+                      <span className="flex items-center gap-1"><Link className="h-3 w-3" /> Enable</span>
+                    )}
+                  </button>
+                </div>
+                {viewToken && (
+                  <div className="space-y-2">
+                    <p className="text-xs text-muted-foreground">
+                      Share this link so anyone can view expenses without signing in
+                    </p>
+                    <div className="flex gap-2">
+                      <div className="flex-1 px-3 py-2 rounded-lg bg-muted/50 border border-border/50 text-xs font-mono text-muted-foreground truncate">
+                        {viewUrl}
+                      </div>
+                      <button
+                        onClick={handleCopyViewLink}
+                        className="h-9 w-9 rounded-lg border border-border/50 bg-muted/50 flex items-center justify-center hover:bg-muted transition-colors shrink-0"
+                        aria-label="Copy link"
+                      >
+                        {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
 
               <Separator className="bg-border/40" />
 

@@ -42,6 +42,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
     ),
     category: e.category,
     notes: e.notes,
+    receiptData: e.receipt_data ?? null,
     createdAt: e.created_at,
     createdBy: e.created_by,
   }))
@@ -66,6 +67,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
     splits,
     category = "📦",
     notes,
+    receiptData,
   } = body
 
   if (!description || !amount || !paidBy || !splits) {
@@ -104,6 +106,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
       split_type: splitType,
       category,
       notes,
+      receipt_data: receiptData ?? null,
       created_by: user.id,
     })
     .select()

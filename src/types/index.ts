@@ -36,6 +36,7 @@ export interface Group {
   createdBy: UserId
   totalExpenses: number
   myBalance: number
+  publicViewToken?: string | null
 }
 
 export interface UserProfile {
@@ -43,6 +44,18 @@ export interface UserProfile {
   name: string
   initials: string
   avatarUrl: string | null
+}
+
+export interface ReceiptItem {
+  name: string
+  qty: number
+  amount: number
+}
+
+export interface ReceiptData {
+  restaurantName: string
+  items: ReceiptItem[]
+  subtotal: number
 }
 
 export interface Expense {
@@ -59,6 +72,7 @@ export interface Expense {
   splits: Record<UserId, number>
   category: string
   notes?: string
+  receiptData?: ReceiptData | null
   createdAt: Date | string
   createdBy: UserId
 }

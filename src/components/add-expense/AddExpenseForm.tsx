@@ -38,6 +38,7 @@ import { TaxServiceAccordion } from "./TaxServiceAccordion"
 import { CalculatorKeyboard } from "./CalculatorKeyboard"
 import { createClient } from "@/lib/supabase/client"
 import type { ReceiptConfirmResult } from "@/components/receipt/ReceiptScannerSheet"
+import type { ReceiptData } from "@/types"
 
 const schema = z.object({
   description: z.string().min(1, "Description is required").max(255, "Max 255 characters"),
@@ -84,6 +85,7 @@ export function AddExpenseForm({ groupId, onSuccess, initialValues, receiptResul
   const [serviceCharge, setServiceCharge] = useState(initialValues?.serviceCharge ?? 0)
   const [showCalc, setShowCalc] = useState(false)
   const [showSuggestions, setShowSuggestions] = useState(false)
+  const [receiptData, setReceiptData] = useState<ReceiptData | null>(null)
 
   useEffect(() => {
     const supabase = createClient()
@@ -139,6 +141,7 @@ export function AddExpenseForm({ groupId, onSuccess, initialValues, receiptResul
     setSplitType("exact")
     setSplitInputs(receiptResult.splits)
     setIncludedIds(Object.keys(receiptResult.splits))
+    setReceiptData(receiptResult.receiptData ?? null)
   }, [receiptResult, form])
 
   function toggleMember(id: string) {
@@ -182,6 +185,7 @@ export function AddExpenseForm({ groupId, onSuccess, initialValues, receiptResul
       splits: splitResult.splits,
       category: values.category,
       notes: values.notes,
+      receiptData: receiptData ?? undefined,
     }
 
     if (isEdit) {

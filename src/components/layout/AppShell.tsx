@@ -9,6 +9,22 @@ import { TopBar } from "./TopBar"
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname()
   const isAuthPage = pathname === "/auth"
+  const isPublicPage = pathname.startsWith("/view/")
+
+  if (isPublicPage) {
+    return (
+      <div className="min-h-screen bg-background relative">
+        <div
+          className="pointer-events-none fixed bottom-0 left-0 right-0 h-64 z-0 dark:block hidden"
+          style={{
+            background:
+              "radial-gradient(ellipse at bottom left, hsl(25 90% 40% / 0.12) 0%, transparent 60%), radial-gradient(ellipse at bottom right, hsl(25 90% 40% / 0.08) 0%, transparent 60%)",
+          }}
+        />
+        <div className="relative z-10">{children}</div>
+      </div>
+    )
+  }
 
   if (isAuthPage) {
     return (

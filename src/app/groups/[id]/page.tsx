@@ -19,7 +19,7 @@ export default async function GroupPage({ params }: PageProps) {
   const { data: groupData } = await supabase
     .from("groups")
     .select(`
-      id, name, emoji, cover_color, created_by, created_at,
+      id, name, emoji, cover_color, created_by, created_at, public_view_token,
       group_members ( user_id, role, profiles ( id, name, initials, avatar_url, phone ) )
     `)
     .eq("id", params.id)
@@ -49,7 +49,8 @@ export default async function GroupPage({ params }: PageProps) {
     createdBy: groupData.created_by,
     createdAt: groupData.created_at,
     totalExpenses,
-    myBalance: 0, // shown per-group on dashboard; not needed here
+    myBalance: 0,
+    publicViewToken: (groupData as any).public_view_token ?? null,
   }
 
   return (

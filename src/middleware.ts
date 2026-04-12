@@ -34,6 +34,11 @@ export async function middleware(request: NextRequest) {
     return supabaseResponse
   }
 
+  // Allow public view pages and public API routes without auth
+  if (pathname.startsWith("/view/") || pathname.startsWith("/api/public/")) {
+    return supabaseResponse
+  }
+
   // Redirect unauthenticated users to /auth
   if (!user && pathname !== "/auth") {
     return NextResponse.redirect(new URL("/auth", request.url))

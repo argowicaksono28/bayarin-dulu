@@ -14,8 +14,9 @@ import { toast } from "sonner"
 import { formatIDR, formatDate } from "@/lib/formatters"
 import { cn } from "@/lib/utils"
 import type { Expense } from "@/types"
-import { Trash2, Loader2, Pencil, ChevronLeft } from "lucide-react"
+import { Trash2, Loader2, Pencil, ChevronLeft, Package, ScanLine } from "lucide-react"
 import { AddExpenseForm } from "@/components/add-expense/AddExpenseForm"
+import { CATEGORY_OPTIONS } from "@/lib/constants"
 
 interface Props {
   expense: Expense
@@ -37,6 +38,9 @@ export function ExpenseDetailSheet({
   const [mode, setMode] = useState<"view" | "edit">("view")
   const [deleting, setDeleting] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+
+  const category = CATEGORY_OPTIONS.find((c) => c.emoji === expense.category)
+  const Icon = category?.icon ?? Package
 
   function handleClose() {
     setMode("view")
@@ -81,86 +85,148 @@ export function ExpenseDetailSheet({
           </div>
         </SheetHeader>
 
-        <ScrollArea className="flex-1 px-4 pb-8">
-          {mode === "view" ? (
-            <div className="space-y-5 pb-4">
-              {/* Detail card */}
-              <div className="flex items-center gap-4 p-4 rounded-xl bg-muted/30 border border-border/40">
-                <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center text-2xl shrink-0">
-                  {expense.category}
+        <ScrollArea className="flex-1">
+          <div className="px-4 pb-8">
+            {mode === "view" ? (
+              <div className="space-y-5 pb-4">
+                {/* Detail card */}
+                <div className="flex items-center gap-4 p-4 rounded-xl bg-muted/30 border border-border/40">
+                  <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center shrink-0">
+                    <Icon className="h-5 w-5 text-foreground" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="font-semibold text-base truncate">{expense.description}</p>
+                      {expense.receiptData && (
+                        <span className="flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 shrink-0">
+                          <ScanLine className="h-2.5 w-2.5" />
+                          Receipt
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Paid by {expense.paidByProfile?.name ?? "Unknown"} · {formatDate(expense.createdAt)}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5 capitalize">
+                      Split: {expense.splitType}
+                    </p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-lg font-bold text-foreground">{formatIDR(expense.amount)}</p>
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-base truncate">{expense.description}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Paid by {expense.paidByProfile?.name ?? "Unknown"} · {formatDate(expense.createdAt)}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-0.5 capitalize">
-                    Split: {expense.splitType}
-                  </p>
-                </div>
-                <div className="text-right shrink-0">
-                  <p className="text-lg font-bold text-foreground">{formatIDR(expense.amount)}</p>
+
+                {expense.notes && (
+                  <p className="text-sm text-muted-foreground px-1">📝 {expense.notes}</p>
+                )}
+
+                {/* Receipt item breakdown */}
+                {expense.receiptData && (
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium flex items-center gap-2">
+                      <ScanLine className="h-4 w-4 text-muted-foreground" />
+                      Receipt Breakdown
+                      {expense.receiptData.restaurantName && (
+                        <span className="text-xs text-muted-foreground font-normal">
+                          — {expense.receiptData.restaurantName}
+                        </span>
+                      )}
+                    </p>
+                    <div className="rounded-xl border border-border/40 bg-muted/20 overflow-hidden divide-y divide-border/30">
+                      {expense.receiptData.items.map((item, i) => (
+                        <div key={i} className="flex items-center justify-between px-3 py-2.5 text-sm">
+                          <span className="text-foreground">
+                            {item.qty > 1 && (
+                              <span className="text-muted-foreground mr-1">{item.qty}×</span>
+                            )}
+                            {item.name}
+                          </span>
+                          <span className="text-muted-foreground tabular-nums">{formatIDR(item.amount)}</span>
+                        </div>
+                      ))}
+                      <div className="flex justify-between px-3 py-2 text-sm text-muted-foreground bg-muted/30">
+                        <span>Subtotal</span>
+                        <span className="tabular-nums">{formatIDR(expense.receiptData.subtotal)}</span>
+                      </div>
+                      {expense.tax > 0 && (
+                        <div className="flex justify-between px-3 py-2 text-sm text-muted-foreground">
+                          <span>Tax ({expense.tax}%)</span>
+                          <span className="tabular-nums">
+                            {formatIDR(Math.round(expense.receiptData.subtotal * expense.tax / 100))}
+                          </span>
+                        </div>
+                      )}
+                      {expense.serviceCharge > 0 && (
+                        <div className="flex justify-between px-3 py-2 text-sm text-muted-foreground">
+                          <span>Service ({expense.serviceCharge}%)</span>
+                          <span className="tabular-nums">
+                            {formatIDR(Math.round(expense.receiptData.subtotal * expense.serviceCharge / 100))}
+                          </span>
+                        </div>
+                      )}
+                      <div className="flex justify-between px-3 py-3 text-sm font-semibold bg-muted/20">
+                        <span>Total</span>
+                        <span className="tabular-nums">{formatIDR(expense.amount)}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <Separator className="bg-border/40" />
+
+                <div className="flex gap-3 pb-4">
+                  <Button
+                    variant="outline"
+                    className="flex-1 gap-2 border-border/50"
+                    onClick={() => { setMode("edit"); setConfirmDelete(false) }}
+                  >
+                    <Pencil className="h-4 w-4" />
+                    Edit
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "flex-1 gap-2 border-border/50 transition-colors",
+                      confirmDelete
+                        ? "bg-destructive text-destructive-foreground border-destructive hover:bg-destructive/90"
+                        : "text-destructive hover:bg-destructive/10 hover:border-destructive"
+                    )}
+                    onClick={handleDelete}
+                    disabled={deleting}
+                  >
+                    {deleting ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-4 w-4" />
+                    )}
+                    {confirmDelete ? "Tap again to confirm" : "Delete"}
+                  </Button>
                 </div>
               </div>
-
-              {expense.notes && (
-                <p className="text-sm text-muted-foreground px-1">📝 {expense.notes}</p>
-              )}
-
-              <Separator className="bg-border/40" />
-
-              <div className="flex gap-3 pb-4">
-                <Button
-                  variant="outline"
-                  className="flex-1 gap-2 border-border/50"
-                  onClick={() => { setMode("edit"); setConfirmDelete(false) }}
-                >
-                  <Pencil className="h-4 w-4" />
-                  Edit
-                </Button>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "flex-1 gap-2 border-border/50 transition-colors",
-                    confirmDelete
-                      ? "bg-destructive text-destructive-foreground border-destructive hover:bg-destructive/90"
-                      : "text-destructive hover:bg-destructive/10 hover:border-destructive"
-                  )}
-                  onClick={handleDelete}
-                  disabled={deleting}
-                >
-                  {deleting ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Trash2 className="h-4 w-4" />
-                  )}
-                  {confirmDelete ? "Tap again to confirm" : "Delete"}
-                </Button>
+            ) : (
+              <div className="pb-4">
+                <AddExpenseForm
+                  groupId={groupId}
+                  initialValues={{
+                    expenseId: expense.id,
+                    description: expense.description,
+                    amount: expense.baseAmount ?? expense.amount,
+                    tax: expense.tax ?? 0,
+                    serviceCharge: expense.serviceCharge ?? 0,
+                    paidBy: expense.paidBy,
+                    splitType: expense.splitType,
+                    splits: expense.splits ?? {},
+                    category: expense.category,
+                    notes: expense.notes,
+                  }}
+                  onSuccess={() => {
+                    setMode("view")
+                    onUpdated()
+                  }}
+                />
               </div>
-            </div>
-          ) : (
-            <div className="pb-4">
-              <AddExpenseForm
-                groupId={groupId}
-                initialValues={{
-                  expenseId: expense.id,
-                  description: expense.description,
-                  amount: expense.baseAmount ?? expense.amount,
-                  tax: expense.tax ?? 0,
-                  serviceCharge: expense.serviceCharge ?? 0,
-                  paidBy: expense.paidBy,
-                  splitType: expense.splitType,
-                  splits: expense.splits ?? {},
-                  category: expense.category,
-                  notes: expense.notes,
-                }}
-                onSuccess={() => {
-                  setMode("view")
-                  onUpdated()
-                }}
-              />
-            </div>
-          )}
+            )}
+          </div>
         </ScrollArea>
       </SheetContent>
     </Sheet>
