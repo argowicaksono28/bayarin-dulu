@@ -10,13 +10,9 @@ import { ExpenseListSkeleton } from "./ExpenseListSkeleton"
 import { EmptyExpenseState } from "./EmptyExpenseState"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Search, SlidersHorizontal, X, Plus } from "lucide-react"
 import { Card } from "@/components/ui/card"
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
 
 interface Props {
@@ -60,13 +56,11 @@ export function ExpenseList({ groupId, onAddExpense }: Props) {
 
     const supabase = createClient()
 
-    // Clean up any existing channel first
     if (channelRef.current) {
       supabase.removeChannel(channelRef.current)
       channelRef.current = null
     }
 
-    // Subscribe to realtime changes on expenses for this group
     const channel = supabase
       .channel(`expenses:group:${groupId}:${Date.now()}`)
       .on(
@@ -77,9 +71,7 @@ export function ExpenseList({ groupId, onAddExpense }: Props) {
           table: "expenses",
           filter: `group_id=eq.${groupId}`,
         },
-        () => {
-          fetchExpenses()
-        }
+        () => { fetchExpenses() }
       )
       .subscribe((status: string) => {
         if (status === "CHANNEL_ERROR") {
@@ -120,6 +112,7 @@ export function ExpenseList({ groupId, onAddExpense }: Props) {
   })
 
   const hasFilter = !!selectedCategory
+  const activeCategory = CATEGORY_OPTIONS.find(c => c.emoji === selectedCategory)
 
   return (
     <div className="space-y-3 px-4">
@@ -134,65 +127,23 @@ export function ExpenseList({ groupId, onAddExpense }: Props) {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <Popover open={filterOpen} onOpenChange={setFilterOpen}>
-          <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              size="icon"
-              className={cn(
-                "h-9 w-9 border-border/50 bg-card hover:bg-muted relative",
-                hasFilter && "border-primary text-primary"
-              )}
-              aria-label="Filter"
-            >
-              <SlidersHorizontal className="h-4 w-4" />
-              {hasFilter && (
-                <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-primary" />
-              )}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent
-            className="w-64 p-3 bg-card border-border/50 shadow-2xl"
-            align="end"
-          >
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                  Filter Category
-                </p>
-                {hasFilter && (
-                  <button
-                    onClick={() => setSelectedCategory(null)}
-                    className="text-xs text-primary hover:underline flex items-center gap-1"
-                  >
-                    <X className="h-3 w-3" /> Reset
-                  </button>
-                )}
-              </div>
-              <div className="grid grid-cols-5 gap-1.5">
-                {CATEGORY_OPTIONS.map(({ emoji, label }) => (
-                  <button
-                    key={emoji}
-                    onClick={() => {
-                      setSelectedCategory(selectedCategory === emoji ? null : emoji)
-                      setFilterOpen(false)
-                    }}
-                    title={label}
-                    className={cn(
-                      "flex flex-col items-center gap-0.5 p-1.5 rounded-lg border text-center transition-colors",
-                      selectedCategory === emoji
-                        ? "border-primary bg-primary/15"
-                        : "border-border/40 hover:bg-muted"
-                    )}
-                  >
-                    <span className="text-lg">{emoji}</span>
-                    <span className="text-[8px] text-muted-foreground truncate w-full">{label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </PopoverContent>
-        </Popover>
+
+        {/* Filter button — opens bottom sheet */}
+        <Button
+          variant="outline"
+          size="icon"
+          className={cn(
+            "h-9 w-9 border-border/50 bg-card hover:bg-muted relative",
+            hasFilter && "border-primary text-primary"
+          )}
+          aria-label="Filter"
+          onClick={() => setFilterOpen(true)}
+        >
+          <SlidersHorizontal className="h-4 w-4" />
+          {hasFilter && (
+            <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-primary" />
+          )}
+        </Button>
 
         {/* Desktop-only Add Expense button */}
         {onAddExpense && (
@@ -207,14 +158,15 @@ export function ExpenseList({ groupId, onAddExpense }: Props) {
       </div>
 
       {/* Active filter badge */}
-      {hasFilter && (
+      {hasFilter && activeCategory && (
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground">Filter:</span>
           <button
             onClick={() => setSelectedCategory(null)}
-            className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-primary/15 text-primary border border-primary/30"
+            className="flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-full bg-primary/15 text-primary border border-primary/30"
           >
-            {selectedCategory}
+            <activeCategory.icon className="h-3 w-3" />
+            {activeCategory.label}
             <X className="h-3 w-3" />
           </button>
         </div>
@@ -253,6 +205,45 @@ export function ExpenseList({ groupId, onAddExpense }: Props) {
           }}
         />
       )}
+
+      {/* Category filter bottom sheet */}
+      <Sheet open={filterOpen} onOpenChange={setFilterOpen}>
+        <SheetContent side="bottom" className="rounded-t-2xl bg-card border-border/50 p-0 flex flex-col">
+          <SheetHeader className="px-4 pt-4 pb-3 shrink-0 flex-row items-center justify-between">
+            <SheetTitle>Filter by Category</SheetTitle>
+            {hasFilter && (
+              <button
+                onClick={() => { setSelectedCategory(null); setFilterOpen(false) }}
+                className="text-xs text-primary hover:underline flex items-center gap-1 mr-8"
+              >
+                <X className="h-3 w-3" /> Reset
+              </button>
+            )}
+          </SheetHeader>
+          <div className="px-4 pb-8">
+            <div className="grid grid-cols-5 gap-3">
+              {CATEGORY_OPTIONS.map(({ emoji, label, icon: Icon }) => (
+                <button
+                  key={emoji}
+                  onClick={() => {
+                    setSelectedCategory(selectedCategory === emoji ? null : emoji)
+                    setFilterOpen(false)
+                  }}
+                  className={cn(
+                    "flex flex-col items-center gap-2 py-3 px-1 rounded-xl border transition-colors",
+                    selectedCategory === emoji
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border/40 hover:bg-muted text-foreground"
+                  )}
+                >
+                  <Icon className="h-6 w-6" />
+                  <span className="text-[10px] text-muted-foreground leading-tight text-center">{label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   )
 }

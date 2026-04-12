@@ -7,7 +7,7 @@ import { z } from "zod"
 import { toast } from "sonner"
 import { format } from "date-fns"
 import { enUS as enLocale } from "date-fns/locale"
-import { CalendarIcon, Calculator, Loader2, ScanLine } from "lucide-react"
+import { CalendarIcon, Calculator, Loader2 } from "lucide-react"
 import {
   Form,
   FormControl,
@@ -37,7 +37,7 @@ import { SplitTypeSelector } from "./SplitTypeSelector"
 import { TaxServiceAccordion } from "./TaxServiceAccordion"
 import { CalculatorKeyboard } from "./CalculatorKeyboard"
 import { createClient } from "@/lib/supabase/client"
-import type { ScannedReceipt, ReceiptConfirmResult } from "@/components/receipt/ReceiptScannerSheet"
+import type { ReceiptConfirmResult } from "@/components/receipt/ReceiptScannerSheet"
 
 const schema = z.object({
   description: z.string().min(1, "Description is required").max(255, "Max 255 characters"),
@@ -68,16 +68,15 @@ interface Props {
   onSuccess: () => void
   /** When provided, form operates in edit mode */
   initialValues?: InitialValues
-  /** Called when receipt is scanned — parent renders the receipt sheet */
-  onReceiptScanned?: (receipt: ScannedReceipt) => void
   /** When parent confirms a receipt split, auto-fill the form */
   receiptResult?: ReceiptConfirmResult | null
 }
 
-export function AddExpenseForm({ groupId, onSuccess, initialValues, onReceiptScanned, receiptResult }: Props) {
+export function AddExpenseForm({ groupId, onSuccess, initialValues, receiptResult }: Props) {
   const isEdit = !!initialValues
   const [members, setMembers] = useState<User[]>([])
   const [currentUserId, setCurrentUserId] = useState<string>("")
+  const [includedIds, setIncludedIds] = useState<string[]>([])
 
   const [splitType, setSplitType] = useState<SplitType>(initialValues?.splitType ?? "equal")
   const [splitInputs, setSplitInputs] = useState<Record<string, number>>(initialValues?.splits ?? {})
@@ -85,7 +84,6 @@ export function AddExpenseForm({ groupId, onSuccess, initialValues, onReceiptSca
   const [serviceCharge, setServiceCharge] = useState(initialValues?.serviceCharge ?? 0)
   const [showCalc, setShowCalc] = useState(false)
   const [showSuggestions, setShowSuggestions] = useState(false)
-  const [scanning, setScanning] = useState(false)
 
   useEffect(() => {
     const supabase = createClient()
@@ -104,6 +102,12 @@ export function AddExpenseForm({ groupId, onSuccess, initialValues, onReceiptSca
         })) : []),
       ]
       setMembers(all)
+      // Initialize included to all members (or restore from initialValues splits)
+      if (initialValues?.splits) {
+        setIncludedIds(Object.keys(initialValues.splits))
+      } else {
+        setIncludedIds(all.map(m => m.id))
+      }
     }).catch(() => {})
   }, [groupId])
 
@@ -133,15 +137,24 @@ export function AddExpenseForm({ groupId, onSuccess, initialValues, onReceiptSca
     setTax(receiptResult.taxPercent)
     setServiceCharge(receiptResult.serviceChargePercent)
     setSplitType("exact")
-    // Use all splits as-is — guest UUIDs are now allowed in expense_splits
     setSplitInputs(receiptResult.splits)
-  }, [receiptResult, form, members, currentUserId])
+    setIncludedIds(Object.keys(receiptResult.splits))
+  }, [receiptResult, form])
+
+  function toggleMember(id: string) {
+    setIncludedIds(prev => {
+      const next = prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+      setSplitInputs({}) // reset manual splits when included members change
+      return next
+    })
+  }
 
   const watchedAmount = form.watch("amount")
   const totalAmount = Math.round(watchedAmount * (1 + tax / 100 + serviceCharge / 100))
 
-  const memberIds = members.map(m => m.id)
-  const splitResult = computeSplits(totalAmount, memberIds, splitType, splitInputs)
+  const activeIds = includedIds.length > 0 ? includedIds : members.map(m => m.id)
+  const includedMembers = members.filter(m => activeIds.includes(m.id))
+  const splitResult = computeSplits(totalAmount, activeIds, splitType, splitInputs)
 
   function handleInputChange(userId: string, value: number) {
     setSplitInputs((prev) => ({ ...prev, [userId]: value }))
@@ -240,18 +253,20 @@ export function AddExpenseForm({ groupId, onSuccess, initialValues, onReceiptSca
 
         {/* Calculator Sheet */}
         <Sheet open={showCalc} onOpenChange={setShowCalc}>
-          <SheetContent side="bottom" className="rounded-t-2xl bg-card border-border/50 pb-8">
-            <SheetHeader className="pb-4">
+          <SheetContent side="bottom" className="rounded-t-2xl bg-card border-border/50 p-0 flex flex-col">
+            <SheetHeader className="px-4 pt-4 pb-3 shrink-0">
               <SheetTitle>Calculator</SheetTitle>
             </SheetHeader>
-            <CalculatorKeyboard
-              initialValue={form.getValues("amount")}
-              onConfirm={(val) => {
-                form.setValue("amount", val)
-                setShowCalc(false)
-              }}
-              onCancel={() => setShowCalc(false)}
-            />
+            <div className="px-4 pb-8">
+              <CalculatorKeyboard
+                initialValue={form.getValues("amount")}
+                onConfirm={(val) => {
+                  form.setValue("amount", val)
+                  setShowCalc(false)
+                }}
+                onCancel={() => setShowCalc(false)}
+              />
+            </div>
           </SheetContent>
         </Sheet>
 
@@ -329,7 +344,7 @@ export function AddExpenseForm({ groupId, onSuccess, initialValues, onReceiptSca
           )}
         />
 
-        {/* Payer */}
+        {/* Payer — includes guests */}
         <FormField
           control={form.control}
           name="paidBy"
@@ -337,8 +352,7 @@ export function AddExpenseForm({ groupId, onSuccess, initialValues, onReceiptSca
             <FormItem>
               <FormLabel>Paid by</FormLabel>
               <div className="flex gap-2 flex-wrap">
-                {/* Only registered members can be the payer — guests have no account */}
-                {members.filter((m) => !m.isGuest).map((member) => (
+                {members.map((member) => (
                   <button
                     key={member.id}
                     type="button"
@@ -362,7 +376,7 @@ export function AddExpenseForm({ groupId, onSuccess, initialValues, onReceiptSca
           )}
         />
 
-        {/* Category */}
+        {/* Category — monochrome icons, no labels */}
         <FormField
           control={form.control}
           name="category"
@@ -370,21 +384,20 @@ export function AddExpenseForm({ groupId, onSuccess, initialValues, onReceiptSca
             <FormItem>
               <FormLabel>Category</FormLabel>
               <div className="grid grid-cols-5 gap-2">
-                {CATEGORY_OPTIONS.map(({ emoji, label }) => (
+                {CATEGORY_OPTIONS.map(({ emoji, label, icon: Icon }) => (
                   <button
                     key={emoji}
                     type="button"
                     onClick={() => field.onChange(emoji)}
                     className={cn(
-                      "flex flex-col items-center gap-1 p-2 rounded-lg border text-center transition-colors",
+                      "flex items-center justify-center p-3 rounded-lg border transition-colors",
                       field.value === emoji
-                        ? "border-primary bg-primary/10"
-                        : "hover:bg-accent"
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "hover:bg-accent text-foreground border-border/50"
                     )}
                     title={label}
                   >
-                    <span className="text-xl">{emoji}</span>
-                    <span className="text-[9px] text-muted-foreground truncate w-full">{label}</span>
+                    <Icon className="h-5 w-5" />
                   </button>
                 ))}
               </div>
@@ -402,9 +415,34 @@ export function AddExpenseForm({ groupId, onSuccess, initialValues, onReceiptSca
           onServiceChange={setServiceCharge}
         />
 
+        {/* Who's included */}
+        <div>
+          <p className="text-sm font-medium mb-3">Who&apos;s included?</p>
+          <div className="flex flex-wrap gap-2">
+            {members.map((m) => (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => toggleMember(m.id)}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-sm transition-colors",
+                  includedIds.includes(m.id)
+                    ? "border-primary bg-primary/10 text-primary font-medium"
+                    : "border-border/50 hover:bg-accent text-muted-foreground"
+                )}
+              >
+                <Avatar className="h-4 w-4">
+                  <AvatarFallback className="text-[8px]">{m.initials}</AvatarFallback>
+                </Avatar>
+                {m.id === currentUserId ? "You" : m.name.split(" ")[0]}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Split type */}
         <SplitTypeSelector
-          members={members}
+          members={includedMembers}
           totalAmount={totalAmount}
           splitType={splitType}
           inputs={splitInputs}
@@ -430,59 +468,6 @@ export function AddExpenseForm({ groupId, onSuccess, initialValues, onReceiptSca
             </FormItem>
           )}
         />
-
-        {!isEdit && (
-          <div>
-            <input
-              id="receipt-upload"
-              type="file"
-              accept="image/*"
-              capture="environment"
-              className="sr-only"
-              onChange={async (e) => {
-                const file = e.target.files?.[0]
-                if (!file) return
-                setScanning(true)
-                try {
-                  const fd = new FormData()
-                  fd.append("file", file)
-                  const res = await fetch("/api/receipt-scan", { method: "POST", body: fd })
-                  const data = await res.json()
-                  if (!res.ok) {
-                    toast.error(data.error ?? "Failed to scan receipt")
-                    return
-                  }
-                  onReceiptScanned?.(data as ScannedReceipt)
-                } catch {
-                  toast.error("Failed to scan receipt")
-                } finally {
-                  setScanning(false)
-                  e.target.value = ""
-                }
-              }}
-            />
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full gap-2 border-border/50 hover:bg-muted text-muted-foreground"
-              disabled={scanning}
-              onClick={() => document.getElementById("receipt-upload")?.click()}
-            >
-              {scanning ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Scanning receipt…
-                </>
-              ) : (
-                <>
-                  <ScanLine className="h-4 w-4" />
-                  Scan Receipt
-                </>
-              )}
-            </Button>
-
-          </div>
-        )}
 
         {/* Submit */}
         <Button

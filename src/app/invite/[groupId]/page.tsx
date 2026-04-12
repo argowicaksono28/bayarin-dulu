@@ -4,8 +4,15 @@ import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { Loader2, Users, CheckCircle, XCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { GuestLinkDialog } from "@/components/invite/GuestLinkDialog"
 
 type State = "loading" | "joining" | "success" | "error" | "already"
+
+interface GuestCandidate {
+  id: string
+  name: string
+  initials: string
+}
 
 export default function InvitePage() {
   const { groupId } = useParams<{ groupId: string }>()
@@ -13,6 +20,8 @@ export default function InvitePage() {
   const [state, setState] = useState<State>("loading")
   const [groupName, setGroupName] = useState("")
   const [errorMsg, setErrorMsg] = useState("")
+  const [guestCandidates, setGuestCandidates] = useState<GuestCandidate[]>([])
+  const [showLinkDialog, setShowLinkDialog] = useState(false)
 
   useEffect(() => {
     async function joinGroup() {
@@ -22,7 +31,6 @@ export default function InvitePage() {
         const data = await res.json()
 
         if (!res.ok) {
-          // If unauthorized, redirect to auth with redirect back
           if (res.status === 401) {
             router.push(`/auth?redirect=/invite/${groupId}`)
             return
@@ -36,6 +44,8 @@ export default function InvitePage() {
           setState("already")
         } else {
           setState("success")
+          // After joining, check for guest members that match the user's name
+          await checkForGuestMatches(data.groupName ?? "")
         }
         setGroupName(data.groupName ?? "the group")
       } catch {
@@ -44,8 +54,51 @@ export default function InvitePage() {
       }
     }
 
+    async function checkForGuestMatches(gName: string) {
+      try {
+        // Get the current user's name
+        const meRes = await fetch("/api/auth/me")
+        const me = await meRes.json()
+        if (!me?.name) return
+
+        const myName = me.name.toLowerCase().trim()
+
+        // Fetch guests in this group
+        const guestRes = await fetch(`/api/groups/${groupId}/guests`)
+        const guests = await guestRes.json()
+        if (!Array.isArray(guests) || guests.length === 0) return
+
+        // Find guests whose name is a close match (contains or is contained by user's name)
+        const candidates = guests.filter((g: any) => {
+          const guestName = (g.name ?? "").toLowerCase().trim()
+          return (
+            guestName === myName ||
+            myName.includes(guestName) ||
+            guestName.includes(myName) ||
+            // First name match
+            guestName.split(" ")[0] === myName.split(" ")[0]
+          )
+        })
+
+        if (candidates.length > 0) {
+          setGuestCandidates(candidates)
+          setShowLinkDialog(true)
+        }
+      } catch {
+        // Non-critical — just skip linking
+      }
+    }
+
     joinGroup()
   }, [groupId, router])
+
+  function handleLinked() {
+    setShowLinkDialog(false)
+  }
+
+  function handleSkipLink() {
+    setShowLinkDialog(false)
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-6">
@@ -103,6 +156,15 @@ export default function InvitePage() {
           </>
         )}
       </div>
+
+      {showLinkDialog && (
+        <GuestLinkDialog
+          groupId={groupId}
+          candidates={guestCandidates}
+          onLinked={handleLinked}
+          onSkip={handleSkipLink}
+        />
+      )}
     </div>
   )
 }

@@ -1,7 +1,8 @@
 import { formatIDR, formatDate } from "@/lib/formatters"
 import type { Expense } from "@/types"
 import { cn } from "@/lib/utils"
-import { ChevronRight } from "lucide-react"
+import { ChevronRight, Package } from "lucide-react"
+import { CATEGORY_OPTIONS } from "@/lib/constants"
 
 const splitTypeLabels: Record<string, string> = {
   equal: "equal",
@@ -17,15 +18,17 @@ interface Props {
 
 export function ExpenseItem({ expense, onClick }: Props) {
   const payerName = expense.paidByProfile?.name ?? "Unknown"
+  const category = CATEGORY_OPTIONS.find((c) => c.emoji === expense.category)
+  const Icon = category?.icon ?? Package
 
   return (
     <button
       onClick={onClick}
       className="w-full flex items-center gap-4 px-4 py-4 hover:bg-white/5 transition-colors text-left"
     >
-      {/* Category emoji */}
-      <div className="h-9 w-9 rounded-full bg-muted flex items-center justify-center text-base shrink-0">
-        {expense.category}
+      {/* Category icon */}
+      <div className="h-9 w-9 rounded-full bg-muted flex items-center justify-center shrink-0">
+        <Icon className="h-4 w-4 text-foreground" />
       </div>
 
       {/* Info */}

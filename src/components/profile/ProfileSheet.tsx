@@ -86,12 +86,12 @@ export function ProfileSheet({ open, onOpenChange }: Props) {
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="rounded-t-2xl bg-card border-border/50 pb-8">
-        <SheetHeader className="pb-2">
+      <SheetContent side="bottom" className="rounded-t-2xl bg-card border-border/50 p-0 flex flex-col">
+        <SheetHeader className="px-4 pt-4 pb-2 shrink-0">
           <SheetTitle>Profile</SheetTitle>
         </SheetHeader>
 
-        <div className="space-y-5">
+        <div className="px-4 pb-8 space-y-5 overflow-y-auto">
           {/* Avatar + name */}
           <div className="flex items-center gap-4 py-2">
             <Avatar className="h-16 w-16">

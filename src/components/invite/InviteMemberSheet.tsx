@@ -49,12 +49,12 @@ export function InviteMemberSheet({ groupId, groupName, open, onOpenChange }: Pr
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="rounded-t-2xl bg-card border-border/50 pb-8">
-        <SheetHeader className="pb-4">
+      <SheetContent side="bottom" className="rounded-t-2xl bg-card border-border/50 p-0 flex flex-col">
+        <SheetHeader className="px-4 pt-4 pb-3 shrink-0">
           <SheetTitle>Invite Members</SheetTitle>
         </SheetHeader>
 
-        <div className="space-y-5">
+        <div className="px-4 pb-8 space-y-5 overflow-y-auto">
           {/* QR placeholder */}
           <div className="flex flex-col items-center gap-3 py-4">
             <div className="h-40 w-40 rounded-2xl border-2 border-dashed border-border/50 bg-muted/30 flex flex-col items-center justify-center gap-2 text-muted-foreground">
