@@ -87,8 +87,10 @@ export function AddExpenseButton({ groupId, open, onOpenChange }: Props) {
             <SheetHeader className="px-4 pt-4 pb-2 shrink-0">
               <SheetTitle>Add Expense</SheetTitle>
             </SheetHeader>
-            <ScrollArea className="flex-1 px-5 pt-2 pb-10">
-              {form}
+            <ScrollArea className="flex-1">
+              <div className="px-5 pt-2 pb-10">
+                {form}
+              </div>
             </ScrollArea>
           </SheetContent>
         </Sheet>

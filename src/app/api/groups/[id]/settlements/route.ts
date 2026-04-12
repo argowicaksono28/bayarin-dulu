@@ -11,10 +11,14 @@ export async function POST(request: Request, { params }: { params: { id: string 
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
   }
 
-  // Security: only the payer can create a settlement
-  if (fromUserId !== user.id) {
-    return NextResponse.json({ error: "You can only settle your own debts" }, { status: 403 })
-  }
+  // Verify user is a member of this group
+  const { data: membership } = await supabase
+    .from("group_members")
+    .select("role")
+    .eq("group_id", params.id)
+    .eq("user_id", user.id)
+    .single()
+  if (!membership) return NextResponse.json({ error: "Not a member of this group" }, { status: 403 })
 
   const { data, error } = await supabase
     .from("settlements")
