@@ -61,7 +61,19 @@ export function useSettlement(initialBalances: Balance[]) {
             toUserId: balance.toUserId,
             amount: balance.amount,
           }),
-        }).catch(() => {})
+        })
+          .then((res) => {
+            if (!res.ok) throw new Error("Settlement failed")
+          })
+          .catch(() => {
+            // Restore the balance on failure
+            setBalances((prev) => {
+              const exists = prev.find((b) => b.id === removedBalance.id)
+              if (exists) return prev
+              return [...prev, removedBalance]
+            })
+            toast.error("Failed to save settlement. Please try again.")
+          })
       } else {
         showToast()
       }

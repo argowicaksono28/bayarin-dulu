@@ -73,7 +73,7 @@ If a field cannot be determined, use 0 or empty string. Always output valid raw 
   })
 
   const responseText = await response.text()
-  console.log("[receipt-scan] Anthropic status:", response.status, "body:", responseText.slice(0, 500))
+  console.log("[receipt-scan] Anthropic status:", response.status)
 
   if (!response.ok) {
     let errMsg = "AI service error"

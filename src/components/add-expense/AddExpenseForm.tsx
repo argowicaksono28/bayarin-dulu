@@ -40,12 +40,12 @@ import { createClient } from "@/lib/supabase/client"
 import type { ScannedReceipt, ReceiptConfirmResult } from "@/components/receipt/ReceiptScannerSheet"
 
 const schema = z.object({
-  description: z.string().min(1, "Description is required"),
-  amount: z.number().positive("Amount must be greater than 0"),
+  description: z.string().min(1, "Description is required").max(255, "Max 255 characters"),
+  amount: z.number().positive("Amount must be greater than 0").max(999_999_999, "Amount too large"),
   paidBy: z.string().min(1),
   date: z.date(),
   category: z.string().min(1),
-  notes: z.string().optional(),
+  notes: z.string().max(500, "Max 500 characters").optional(),
 })
 
 type Values = z.infer<typeof schema>

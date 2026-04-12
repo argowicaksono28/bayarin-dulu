@@ -25,6 +25,15 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
+  // Verify user is a member of this group
+  const { data: membership } = await supabase
+    .from("group_members")
+    .select("role")
+    .eq("group_id", params.id)
+    .eq("user_id", user.id)
+    .single()
+  if (!membership) return NextResponse.json({ error: "Not a member of this group" }, { status: 403 })
+
   const body = await request.json()
   const { name, emoji, coverColor } = body
 
@@ -48,6 +57,17 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
   const supabase = createClient(request as any)
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  // Verify user is an admin of this group
+  const { data: membership } = await supabase
+    .from("group_members")
+    .select("role")
+    .eq("group_id", params.id)
+    .eq("user_id", user.id)
+    .single()
+  if (!membership || membership.role !== "admin") {
+    return NextResponse.json({ error: "Only admins can delete groups" }, { status: 403 })
+  }
 
   const { error } = await supabase.from("groups").delete().eq("id", params.id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

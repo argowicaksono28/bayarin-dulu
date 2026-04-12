@@ -64,6 +64,25 @@ export async function POST(request: Request, { params }: { params: { id: string 
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
   }
 
+  // Validate amount
+  if (typeof amount !== "number" || amount <= 0 || amount > 999_999_999) {
+    return NextResponse.json({ error: "Invalid amount" }, { status: 400 })
+  }
+
+  // Validate text lengths
+  if (typeof description !== "string" || description.length > 255) {
+    return NextResponse.json({ error: "Description too long (max 255)" }, { status: 400 })
+  }
+  if (notes && typeof notes === "string" && notes.length > 500) {
+    return NextResponse.json({ error: "Notes too long (max 500)" }, { status: 400 })
+  }
+
+  // Validate splits sum matches amount (1 IDR rounding tolerance)
+  const splitsSum = Object.values(splits as Record<string, number>).reduce((a, b) => a + b, 0)
+  if (Math.abs(splitsSum - amount) > 1) {
+    return NextResponse.json({ error: "Splits do not sum to total amount" }, { status: 400 })
+  }
+
   const { data: expense, error } = await supabase
     .from("expenses")
     .insert({
@@ -95,7 +114,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
   if (splitError) return NextResponse.json({ error: splitError.message }, { status: 500 })
 
   // Log activity
-  await supabase.from("activities").insert({
+  const { error: actErr } = await supabase.from("activities").insert({
     group_id: params.id,
     type: "expense_added",
     actor_id: user.id,
@@ -103,6 +122,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
     amount,
     description: `added expense "${description}"`,
   })
+  if (actErr) console.error("[activities] insert failed:", actErr.message)
 
   // Notify group members
   const { data: members } = await supabase
@@ -122,7 +142,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
       style: "currency", currency: "IDR", minimumFractionDigits: 0,
     }).format(amount)
 
-    await supabase.from("notifications").insert(
+    const { error: notifErr } = await supabase.from("notifications").insert(
       members.map((m) => ({
         user_id: m.user_id,
         type: "expense_added",
@@ -132,6 +152,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
         actor_id: user.id,
       }))
     )
+    if (notifErr) console.error("[notifications] insert failed:", notifErr.message)
   }
 
   return NextResponse.json(expense, { status: 201 })

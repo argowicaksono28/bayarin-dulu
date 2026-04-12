@@ -27,26 +27,54 @@ interface Props {
 export function ExpenseList({ groupId, onAddExpense }: Props) {
   const [expenses, setExpenses] = useState<Expense[] | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [fetchError, setFetchError] = useState<string | null>(null)
   const [search, setSearch] = useState("")
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [filterOpen, setFilterOpen] = useState(false)
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null)
 
-  useEffect(() => {
+  function fetchExpenses() {
     setIsLoading(true)
+    setFetchError(null)
     fetch(`/api/groups/${groupId}/expenses`)
-      .then((r) => r.json())
-      .then((data) => {
-        setExpenses(Array.isArray(data) ? data : [])
+      .then(async (r) => {
+        const data = await r.json()
+        if (!r.ok) {
+          setFetchError(data.error ?? "Failed to load expenses")
+          setExpenses([])
+        } else {
+          setExpenses(Array.isArray(data) ? data : [])
+        }
         setIsLoading(false)
       })
       .catch(() => {
+        setFetchError("Network error — could not load expenses")
         setExpenses([])
         setIsLoading(false)
       })
+  }
+
+  useEffect(() => {
+    fetchExpenses()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [groupId])
 
   if (isLoading) return <ExpenseListSkeleton />
+
+  if (fetchError) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 text-center px-4">
+        <p className="text-sm text-destructive font-medium">{fetchError}</p>
+        <p className="text-xs text-muted-foreground mt-1">Check your connection and try again</p>
+        <button
+          onClick={fetchExpenses}
+          className="mt-3 text-sm text-primary hover:underline font-medium"
+        >
+          Retry
+        </button>
+      </div>
+    )
+  }
 
   const filtered = expenses?.filter((e) => {
     const matchesSearch = e.description.toLowerCase().includes(search.toLowerCase())
@@ -181,12 +209,7 @@ export function ExpenseList({ groupId, onAddExpense }: Props) {
           onOpenChange={(open) => { if (!open) setSelectedExpense(null) }}
           onUpdated={() => {
             setSelectedExpense(null)
-            // Refetch to get fresh data including updated paidByProfile
-            setIsLoading(true)
-            fetch(`/api/groups/${groupId}/expenses`)
-              .then((r) => r.json())
-              .then((data) => { setExpenses(Array.isArray(data) ? data : []); setIsLoading(false) })
-              .catch(() => setIsLoading(false))
+            fetchExpenses()
           }}
           onDeleted={(id) => {
             setExpenses((prev) => prev?.filter((e) => e.id !== id) ?? null)

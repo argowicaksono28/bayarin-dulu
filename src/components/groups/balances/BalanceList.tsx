@@ -42,11 +42,38 @@ export function BalanceList({ groupId }: Props) {
 
   if (isLoading) return <BalanceListSkeleton />
 
+  function refetch() {
+    setIsLoading(true)
+    setFetchError(null)
+    fetch(`/api/groups/${groupId}/balances`)
+      .then(async (r) => {
+        const data = await r.json()
+        if (!r.ok) {
+          setFetchError(data.error ?? "Failed to load balances")
+          setRawBalances([])
+        } else {
+          setRawBalances(Array.isArray(data) ? data : [])
+        }
+        setIsLoading(false)
+      })
+      .catch(() => {
+        setFetchError("Network error — could not load balances")
+        setRawBalances([])
+        setIsLoading(false)
+      })
+  }
+
   if (fetchError) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center px-4">
         <p className="text-sm text-destructive font-medium">{fetchError}</p>
-        <p className="text-xs text-muted-foreground mt-1">Check your connection and try refreshing</p>
+        <p className="text-xs text-muted-foreground mt-1">Check your connection and try again</p>
+        <button
+          onClick={refetch}
+          className="mt-3 text-sm text-primary hover:underline font-medium"
+        >
+          Retry
+        </button>
       </div>
     )
   }

@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { formatIDR } from "@/lib/formatters"
 import type { Balance } from "@/types"
-import { CheckCircle, ArrowRight, Loader2 } from "lucide-react"
+import { CheckCircle, ArrowRight } from "lucide-react"
 
 const avatarColors = [
   "bg-emerald-500", "bg-blue-500", "bg-amber-500",
@@ -25,17 +25,14 @@ interface Props {
 
 export function SettlementAlertDialog({ balance, onConfirm }: Props) {
   const [open, setOpen] = useState(false)
-  const [loading, setLoading] = useState(false)
 
   const fromName = balance.fromProfile?.name ?? "User"
   const toName = balance.toProfile?.name ?? "User"
   const fromInitials = balance.fromProfile?.initials ?? "?"
   const toInitials = balance.toProfile?.initials ?? "?"
 
-  async function handleConfirm() {
-    setLoading(true)
+  function handleConfirm() {
     setOpen(false)
-    setLoading(false)
     onConfirm()
   }
 
@@ -98,13 +95,8 @@ export function SettlementAlertDialog({ balance, onConfirm }: Props) {
             <Button
               className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground gap-2"
               onClick={handleConfirm}
-              disabled={loading}
             >
-              {loading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <CheckCircle className="h-4 w-4" />
-              )}
+              <CheckCircle className="h-4 w-4" />
               Confirm
             </Button>
           </div>

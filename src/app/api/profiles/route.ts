@@ -1,6 +1,8 @@
 import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 
+export const dynamic = "force-dynamic"
+
 /** GET /api/profiles?q=name_or_phone — search profiles by name or phone */
 export async function GET(request: Request) {
   const supabase = createClient(request as any)

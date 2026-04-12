@@ -32,25 +32,29 @@ export async function PATCH(
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  // Replace splits if provided
+  // Replace splits if provided — delete then insert (PK prevents duplicates if done in reverse)
   if (splits) {
-    await supabase.from("expense_splits").delete().eq("expense_id", params.expId)
     const splitRows = Object.entries(splits as Record<string, number>).map(([userId, amt]) => ({
       expense_id: params.expId,
       user_id: userId,
       amount: amt,
     }))
-    await supabase.from("expense_splits").insert(splitRows)
+    // Delete old splits first, then insert new ones
+    const { error: delErr } = await supabase.from("expense_splits").delete().eq("expense_id", params.expId)
+    if (delErr) return NextResponse.json({ error: "Failed to update splits: " + delErr.message }, { status: 500 })
+    const { error: insErr } = await supabase.from("expense_splits").insert(splitRows)
+    if (insErr) return NextResponse.json({ error: "Failed to save splits: " + insErr.message }, { status: 500 })
   }
 
   // Log activity
-  await supabase.from("activities").insert({
+  const { error: actErr } = await supabase.from("activities").insert({
     group_id: params.id,
     type: "expense_edited",
     actor_id: user.id,
     expense_id: params.expId,
     description: `edited expense "${data.description}"`,
   })
+  if (actErr) console.error("[activities] insert failed:", actErr.message)
 
   return NextResponse.json(data)
 }
@@ -73,12 +77,13 @@ export async function DELETE(
   const { error } = await supabase.from("expenses").delete().eq("id", params.expId)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  await supabase.from("activities").insert({
+  const { error: actErr } = await supabase.from("activities").insert({
     group_id: params.id,
     type: "expense_deleted",
     actor_id: user.id,
     description: `deleted expense "${expense?.description ?? ""}"`,
   })
+  if (actErr) console.error("[activities] insert failed:", actErr.message)
 
   return NextResponse.json({ success: true })
 }
