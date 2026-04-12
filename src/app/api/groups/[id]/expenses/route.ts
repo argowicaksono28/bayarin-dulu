@@ -8,15 +8,23 @@ export async function GET(request: Request, { params }: { params: { id: string }
 
   const { data, error } = await supabase
     .from("expenses")
-    .select(`
-      *,
-      expense_splits ( user_id, amount ),
-      profiles!expenses_paid_by_fkey ( id, name, initials, avatar_url )
-    `)
+    .select("*, expense_splits ( user_id, amount )")
     .eq("group_id", params.id)
     .order("created_at", { ascending: false })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Collect unique payer IDs then resolve names from profiles + guest_members
+  const payerIds = [...new Set((data ?? []).map((e) => e.paid_by).filter(Boolean))]
+
+  const [{ data: profiles }, { data: guests }] = await Promise.all([
+    supabase.from("profiles").select("id, name, initials, avatar_url").in("id", payerIds.length ? payerIds : ["none"]),
+    supabase.from("guest_members").select("id, name, initials").in("id", payerIds.length ? payerIds : ["none"]),
+  ])
+
+  const payerMap: Record<string, { id: string; name: string; initials: string; avatar_url: string | null }> = {}
+  for (const p of profiles ?? []) payerMap[p.id] = p
+  for (const g of guests ?? []) if (!payerMap[g.id]) payerMap[g.id] = { id: g.id, name: g.name, initials: g.initials, avatar_url: null }
 
   const expenses = (data ?? []).map((e) => ({
     id: e.id,
@@ -27,7 +35,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
     tax: e.tax_percent,
     serviceCharge: e.service_charge_percent,
     paidBy: e.paid_by,
-    paidByProfile: e.profiles,
+    paidByProfile: payerMap[e.paid_by] ?? null,
     splitType: e.split_type,
     splits: Object.fromEntries(
       ((e.expense_splits ?? []) as any[]).map((s: any) => [s.user_id, s.amount])
