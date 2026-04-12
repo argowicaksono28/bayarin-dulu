@@ -2,22 +2,6 @@ import Link from "next/link"
 import { formatIDR, formatRelative } from "@/lib/formatters"
 import type { Group } from "@/types"
 import { cn } from "@/lib/utils"
-import { Users } from "lucide-react"
-
-// Deterministic color per group
-const groupColors = [
-  "bg-emerald-500",
-  "bg-blue-500",
-  "bg-amber-500",
-  "bg-violet-500",
-  "bg-rose-500",
-  "bg-cyan-500",
-]
-
-function getGroupColor(id: string): string {
-  const idx = parseInt(id.replace(/\D/g, ""), 10) % groupColors.length
-  return groupColors[idx] || groupColors[0]
-}
 
 interface Props {
   group: Group
@@ -26,17 +10,16 @@ interface Props {
 export function GroupCard({ group }: Props) {
   const isPositive = group.myBalance > 0
   const isSettled = group.myBalance === 0
-  const colorClass = getGroupColor(group.id)
 
   return (
     <Link href={`/groups/${group.id}`} className="block">
       <div className="flex items-center gap-4 px-4 py-4 hover:bg-white/5 dark:hover:bg-white/5 hover:bg-black/5 transition-colors rounded-lg cursor-pointer">
-        {/* Colored icon */}
+        {/* Group emoji + cover color */}
         <div className={cn(
-          "h-10 w-10 rounded-xl flex items-center justify-center shrink-0",
-          colorClass
+          "h-10 w-10 rounded-xl flex items-center justify-center shrink-0 text-xl",
+          group.coverColor || "bg-violet-500"
         )}>
-          <Users className="h-5 w-5 text-white" />
+          {group.emoji || "🎉"}
         </div>
 
         {/* Info */}
