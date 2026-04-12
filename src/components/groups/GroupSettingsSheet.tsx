@@ -12,18 +12,13 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Settings, UserPlus, Trash2, Loader2, LogOut } from "lucide-react"
+import { Settings, UserPlus, Loader2, LogOut } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { useRouter } from "next/navigation"
 import type { Group } from "@/types"
 import { InviteMemberSheet } from "@/components/invite/InviteMemberSheet"
-
-const EMOJI_OPTIONS = [
-  "🎉", "🏖️", "🏠", "🍽️", "🚗", "✈️", "🎮", "🏋️",
-  "📚", "💼", "🎵", "🎬", "🏕️", "🛒", "💊", "🐾",
-  "🎓", "💪", "🌴", "🎯", "🍕", "☕", "🚢", "⚽",
-]
+import { GROUP_ICON_OPTIONS } from "@/lib/constants"
 
 const COLOR_OPTIONS = [
   { label: "Slate",   value: "bg-slate-500" },
@@ -53,6 +48,8 @@ export function GroupSettingsSheet({ group }: Props) {
   const [leavePending, setLeavePending] = useState(false)
   const [leaveConfirm, setLeaveConfirm] = useState(false)
 
+  const selectedIcon = GROUP_ICON_OPTIONS.find((o) => o.key === emoji) ?? GROUP_ICON_OPTIONS[0]
+  const PreviewIcon = selectedIcon.icon
   const isDirty = name !== group.name || emoji !== group.emoji || coverColor !== (group.coverColor || "bg-violet-500")
 
   async function handleSave() {
@@ -112,27 +109,28 @@ export function GroupSettingsSheet({ group }: Props) {
           <ScrollArea className="flex-1 px-4 pb-8">
             <div className="space-y-5 pb-6">
               {/* Preview banner */}
-              <div className={cn("rounded-xl h-20 flex items-center justify-center text-4xl transition-colors", coverColor)}>
-                {emoji}
+              <div className={cn("rounded-xl h-20 flex items-center justify-center transition-colors", coverColor)}>
+                <PreviewIcon className="h-10 w-10 text-white" />
               </div>
 
-              {/* Emoji picker */}
+              {/* Icon picker — monochrome Lucide icons */}
               <div className="space-y-2">
                 <Label className="text-sm text-muted-foreground">Group Icon</Label>
                 <div className="grid grid-cols-8 gap-2">
-                  {EMOJI_OPTIONS.map((e) => (
+                  {GROUP_ICON_OPTIONS.map(({ key, label, icon: Icon }) => (
                     <button
-                      key={e}
+                      key={key}
                       type="button"
-                      onClick={() => setEmoji(e)}
+                      title={label}
+                      onClick={() => setEmoji(key)}
                       className={cn(
-                        "h-10 w-10 rounded-xl text-xl flex items-center justify-center border transition-colors",
-                        emoji === e
-                          ? "border-primary bg-primary/15"
-                          : "border-border/50 bg-muted/50 hover:bg-muted"
+                        "h-10 w-10 rounded-xl flex items-center justify-center border transition-colors",
+                        emoji === key
+                          ? "border-primary bg-primary/15 text-primary"
+                          : "border-border/50 bg-muted/50 hover:bg-muted text-foreground"
                       )}
                     >
-                      {e}
+                      <Icon className="h-5 w-5" />
                     </button>
                   ))}
                 </div>
