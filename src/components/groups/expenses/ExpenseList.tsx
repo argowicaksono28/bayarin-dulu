@@ -1,8 +1,9 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Expense } from "@/types"
 import { CATEGORY_OPTIONS } from "@/lib/constants"
+import { createClient } from "@/lib/supabase/client"
 import { ExpenseItem } from "./ExpenseItem"
 import { ExpenseDetailSheet } from "./ExpenseDetailSheet"
 import { ExpenseListSkeleton } from "./ExpenseListSkeleton"
@@ -56,6 +57,19 @@ export function ExpenseList({ groupId, onAddExpense }: Props) {
 
   useEffect(() => {
     fetchExpenses()
+
+    // Realtime: re-fetch whenever an expense is inserted or deleted in this group
+    const supabase = createClient()
+    const channel = supabase
+      .channel(`expenses:${groupId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "expenses", filter: `group_id=eq.${groupId}` },
+        () => { fetchExpenses() }
+      )
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [groupId])
 

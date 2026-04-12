@@ -38,15 +38,14 @@ export function SettlementAlertDialog({ balance, onConfirm }: Props) {
 
   return (
     <>
-      <Button
-        variant="outline"
-        size="sm"
-        className="h-8 gap-1.5 border-border/60 text-xs hover:bg-muted"
+      <button
         onClick={() => setOpen(true)}
+        aria-label="Settle debt"
+        title="Settle"
+        className="h-8 w-8 flex items-center justify-center rounded-full border border-border/60 text-muted-foreground hover:text-primary hover:border-primary hover:bg-primary/10 transition-colors"
       >
-        <CheckCircle className="h-3.5 w-3.5" />
-        Settle
-      </Button>
+        <CheckCircle className="h-4 w-4" />
+      </button>
 
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent side="bottom" className="rounded-t-2xl bg-card border-border/50 pb-8">

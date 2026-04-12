@@ -66,6 +66,7 @@ export function GroupSettingsSheet({ group }: Props) {
     if (res.ok) {
       toast.success("Group settings saved")
       setOpen(false)
+      router.refresh()
     } else {
       const data = await res.json()
       toast.error(data.error ?? "Failed to save settings")

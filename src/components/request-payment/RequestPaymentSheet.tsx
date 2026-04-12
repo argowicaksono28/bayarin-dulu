@@ -55,15 +55,14 @@ export function RequestPaymentSheet({ balance }: Props) {
 
   return (
     <>
-      <Button
-        variant="outline"
-        size="sm"
-        className="h-8 gap-1.5 border-border/60 text-xs hover:bg-muted"
+      <button
         onClick={() => setOpen(true)}
+        aria-label="Request payment"
+        title="Request"
+        className="h-8 w-8 flex items-center justify-center rounded-full border border-border/60 text-muted-foreground hover:text-primary hover:border-primary hover:bg-primary/10 transition-colors"
       >
         <Send className="h-3.5 w-3.5" />
-        Request
-      </Button>
+      </button>
 
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent side="bottom" className="rounded-t-2xl bg-card border-border/50 max-h-[80vh]">
