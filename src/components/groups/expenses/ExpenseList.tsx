@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Expense } from "@/types"
 import { CATEGORY_OPTIONS } from "@/lib/constants"
 import { createClient } from "@/lib/supabase/client"
@@ -24,7 +24,6 @@ interface Props {
   onAddExpense?: () => void
 }
 
-
 export function ExpenseList({ groupId, onAddExpense }: Props) {
   const [expenses, setExpenses] = useState<Expense[] | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -33,9 +32,9 @@ export function ExpenseList({ groupId, onAddExpense }: Props) {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [filterOpen, setFilterOpen] = useState(false)
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null)
+  const channelRef = useRef<ReturnType<ReturnType<typeof createClient>["channel"]> | null>(null)
 
   function fetchExpenses() {
-    setIsLoading(true)
     setFetchError(null)
     fetch(`/api/groups/${groupId}/expenses`)
       .then(async (r) => {
@@ -56,21 +55,44 @@ export function ExpenseList({ groupId, onAddExpense }: Props) {
   }
 
   useEffect(() => {
+    setIsLoading(true)
     fetchExpenses()
 
-    // Realtime: re-fetch whenever an expense changes in this group
     const supabase = createClient()
-    const channelName = `expenses-${groupId}-${Date.now()}`
+
+    // Clean up any existing channel first
+    if (channelRef.current) {
+      supabase.removeChannel(channelRef.current)
+      channelRef.current = null
+    }
+
+    // Subscribe to realtime changes on expenses for this group
     const channel = supabase
-      .channel(channelName)
+      .channel(`expenses:group:${groupId}`)
       .on(
         "postgres_changes" as any,
-        { event: "*", schema: "public", table: "expenses", filter: `group_id=eq.${groupId}` },
-        () => { fetchExpenses() }
+        {
+          event: "*",
+          schema: "public",
+          table: "expenses",
+          filter: `group_id=eq.${groupId}`,
+        },
+        () => {
+          fetchExpenses()
+        }
       )
-      .subscribe()
+      .subscribe((status: string) => {
+        if (status === "CHANNEL_ERROR") {
+          console.warn("[realtime] expenses channel error — falling back to manual refresh")
+        }
+      })
 
-    return () => { supabase.removeChannel(channel) }
+    channelRef.current = channel
+
+    return () => {
+      supabase.removeChannel(channel)
+      channelRef.current = null
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [groupId])
 
