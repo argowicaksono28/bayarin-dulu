@@ -39,8 +39,8 @@ export function BottomNav() {
             className={cn(
               "flex flex-1 flex-col items-center justify-center gap-1 text-xs transition-colors",
               pathname === "/dashboard"
-                ? "text-primary"
-                : "text-muted-foreground hover:text-foreground"
+                ? "text-primary dark:text-primary font-semibold"
+                : "text-foreground/60 dark:text-muted-foreground hover:text-foreground"
             )}
           >
             <Home className="h-5 w-5" />
@@ -59,7 +59,7 @@ export function BottomNav() {
           {/* Right — Profile */}
           <button
             onClick={() => setProfileOpen(true)}
-            className="flex flex-1 flex-col items-center justify-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            className="flex flex-1 flex-col items-center justify-center gap-1 text-xs text-foreground/60 dark:text-muted-foreground hover:text-foreground transition-colors"
           >
             <User className="h-5 w-5" />
             <span>Profile</span>

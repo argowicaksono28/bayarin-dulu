@@ -18,8 +18,8 @@ import { UserPlus, Loader2, Trash2 } from "lucide-react"
 import type { User } from "@/types"
 
 const avatarColors = [
-  "bg-emerald-500", "bg-blue-500", "bg-amber-500",
-  "bg-violet-500", "bg-rose-500", "bg-cyan-500",
+  "bg-emerald-600", "bg-blue-600", "bg-amber-700",
+  "bg-violet-600", "bg-rose-700", "bg-cyan-700",
 ]
 
 interface GuestMember { id: string; name: string; initials: string }

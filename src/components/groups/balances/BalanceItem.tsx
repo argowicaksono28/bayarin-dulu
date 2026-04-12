@@ -14,9 +14,9 @@ import { createClient } from "@/lib/supabase/client"
 import { useEffect, useState } from "react"
 
 const AVATAR_COLORS = [
-  "bg-emerald-500", "bg-blue-500", "bg-amber-500",
-  "bg-violet-500", "bg-rose-500", "bg-cyan-500",
-  "bg-pink-500", "bg-indigo-500",
+  "bg-emerald-600", "bg-blue-600", "bg-amber-700",
+  "bg-violet-600", "bg-rose-700", "bg-cyan-700",
+  "bg-pink-700", "bg-indigo-600",
 ]
 function avatarColor(id: string) {
   let hash = 0

@@ -62,7 +62,7 @@ export function Sidebar() {
                 "flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all duration-150",
                 active
                   ? "bg-primary/15 text-primary font-medium"
-                  : "text-muted-foreground hover:text-foreground hover:bg-white/5"
+                  : "text-foreground/60 dark:text-muted-foreground hover:text-foreground hover:bg-white/5"
               )}
             >
               <Icon className="h-4 w-4 shrink-0" />
@@ -88,7 +88,7 @@ export function Sidebar() {
             <p className="text-sm font-medium truncate text-foreground">
               {user?.name ?? "Loading…"}
             </p>
-            <p className="text-[11px] text-muted-foreground truncate">
+            <p className="text-xs text-foreground/55 dark:text-muted-foreground truncate">
               {user?.email ?? ""}
             </p>
           </div>

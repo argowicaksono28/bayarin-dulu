@@ -41,8 +41,8 @@ export function ExpenseItem({ expense, onClick }: Props) {
         <div className="text-right">
           <p className="text-sm font-semibold text-foreground">{formatIDR(expense.amount)}</p>
           <span className={cn(
-            "inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-medium",
-            "bg-primary/15 text-primary"
+            "inline-block mt-1 px-2 py-0.5 rounded text-[11px] font-semibold",
+            "bg-primary/15 text-secondary-foreground dark:text-primary"
           )}>
             {splitTypeLabels[expense.splitType]}
           </span>
