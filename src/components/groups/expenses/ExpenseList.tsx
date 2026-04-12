@@ -58,12 +58,13 @@ export function ExpenseList({ groupId, onAddExpense }: Props) {
   useEffect(() => {
     fetchExpenses()
 
-    // Realtime: re-fetch whenever an expense is inserted or deleted in this group
+    // Realtime: re-fetch whenever an expense changes in this group
     const supabase = createClient()
+    const channelName = `expenses-${groupId}-${Date.now()}`
     const channel = supabase
-      .channel(`expenses:${groupId}`)
+      .channel(channelName)
       .on(
-        "postgres_changes",
+        "postgres_changes" as any,
         { event: "*", schema: "public", table: "expenses", filter: `group_id=eq.${groupId}` },
         () => { fetchExpenses() }
       )
