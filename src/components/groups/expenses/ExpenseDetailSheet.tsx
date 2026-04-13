@@ -336,14 +336,16 @@ export function ExpenseDetailSheet({
                 <Separator className="bg-border/40" />
 
                 <div className="flex gap-3 pb-4">
-                  <Button
-                    variant="outline"
-                    className="flex-1 gap-2 border-border/50"
-                    onClick={() => { setMode("edit"); setConfirmDelete(false) }}
-                  >
-                    <Pencil className="h-4 w-4" />
-                    Edit
-                  </Button>
+                  {!expense.receiptData && (
+                    <Button
+                      variant="outline"
+                      className="flex-1 gap-2 border-border/50"
+                      onClick={() => { setMode("edit"); setConfirmDelete(false) }}
+                    >
+                      <Pencil className="h-4 w-4" />
+                      Edit
+                    </Button>
+                  )}
                   <Button
                     variant="outline"
                     className={cn(
