@@ -141,7 +141,7 @@ export function GroupSettingsSheet({ group }: Props) {
           </SheetHeader>
 
           <ScrollArea className="flex-1">
-            <div className="px-4 pb-8 space-y-5">
+            <div className="px-4 pb-8 space-y-5 w-full min-w-0">
               {/* Preview banner */}
               <div className={cn("rounded-xl h-20 flex items-center justify-center transition-colors", coverColor)}>
                 <PreviewIcon className="h-10 w-10 text-white" />
@@ -150,7 +150,7 @@ export function GroupSettingsSheet({ group }: Props) {
               {/* Icon picker — monochrome Lucide icons */}
               <div className="space-y-2">
                 <Label className="text-sm text-muted-foreground">Group Icon</Label>
-                <div className="grid grid-cols-8 gap-2">
+                <div className="grid grid-cols-6 gap-2">
                   {GROUP_ICON_OPTIONS.map(({ key, label, icon: Icon }) => (
                     <button
                       key={key}

@@ -10,6 +10,13 @@ import {
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
+import { Skeleton } from "@/components/ui/skeleton"
+import {
+  Accordion,
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent,
+} from "@/components/ui/accordion"
 import { toast } from "sonner"
 import { formatIDR, formatDate } from "@/lib/formatters"
 import { cn } from "@/lib/utils"
@@ -18,6 +25,12 @@ import { Trash2, Loader2, Pencil, ChevronLeft, Package, ScanLine } from "lucide-
 import { AddExpenseForm } from "@/components/add-expense/AddExpenseForm"
 import { CATEGORY_OPTIONS } from "@/lib/constants"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+
+interface Balance {
+  fromUserId: string
+  toUserId: string
+  amount: number
+}
 
 interface Props {
   expense: Expense
@@ -40,19 +53,30 @@ export function ExpenseDetailSheet({
   const [deleting, setDeleting] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [memberNames, setMemberNames] = useState<Record<string, string>>({})
+  const [loadingMembers, setLoadingMembers] = useState(false)
+  const [balances, setBalances] = useState<Balance[]>([])
 
   useEffect(() => {
     if (!open) return
+    setLoadingMembers(true)
     Promise.all([
       fetch(`/api/groups/${groupId}/members`).then(r => r.json()),
       fetch(`/api/groups/${groupId}/guests`).then(r => r.json()),
-    ]).then(([members, guests]) => {
+      fetch(`/api/groups/${groupId}/balances`).then(r => r.json()),
+    ]).then(([members, guests, bals]) => {
       const map: Record<string, string> = {}
       for (const m of (members ?? [])) map[m.id] = m.name
       for (const g of (guests ?? [])) map[g.id] = g.name
       setMemberNames(map)
-    })
+      setBalances(Array.isArray(bals) ? bals : [])
+    }).finally(() => setLoadingMembers(false))
   }, [open, groupId])
+
+  // A person is "paid/settled" if they ARE the payer, or have no outstanding debt to the payer
+  function isPaid(userId: string): boolean {
+    if (userId === expense.paidBy) return true
+    return !balances.some(b => b.fromUserId === userId && b.toUserId === expense.paidBy)
+  }
 
   const category = CATEGORY_OPTIONS.find((c) => c.emoji === expense.category)
   const Icon = category?.icon ?? Package
@@ -81,6 +105,103 @@ export function ExpenseDetailSheet({
     toast.success("Expense deleted")
     handleClose()
     onDeleted(expense.id)
+  }
+
+  const splitEntries = Object.entries(expense.splits ?? {})
+
+  // Per-person receipt accordion rows
+  function ReceiptPerPersonRows() {
+    const rd = expense.receiptData!
+    return (
+      <Accordion type="multiple" className="rounded-xl border border-border/40 bg-muted/20 overflow-hidden divide-y divide-border/30">
+        {splitEntries.map(([userId, amount]) => {
+          const proportion = expense.amount > 0 ? amount / expense.amount : 0
+          const personSubtotal = Math.round(rd.subtotal * proportion)
+          const personTax = expense.tax > 0 ? Math.round(rd.subtotal * proportion * expense.tax / 100) : 0
+          const personService = expense.serviceCharge > 0 ? Math.round(rd.subtotal * proportion * expense.serviceCharge / 100) : 0
+
+          return (
+            <AccordionItem key={userId} value={userId} className="border-0">
+              <AccordionTrigger className="px-3 py-2.5 hover:no-underline hover:bg-white/5 [&[data-state=open]>svg]:rotate-180">
+                <div className="flex items-center gap-2 flex-1 min-w-0 mr-2">
+                  {loadingMembers ? (
+                    <Skeleton className="h-4 w-24" />
+                  ) : (
+                    <span className="text-sm text-foreground truncate">
+                      {memberNames[userId] ?? "Unknown"}
+                    </span>
+                  )}
+                  {isPaid(userId) && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 shrink-0">
+                      paid
+                    </span>
+                  )}
+                </div>
+                <span className="text-sm text-muted-foreground tabular-nums mr-2">{formatIDR(amount)}</span>
+              </AccordionTrigger>
+              <AccordionContent className="pb-0">
+                <div className="border-t border-border/30 divide-y divide-border/20 bg-muted/30">
+                  {rd.items.map((item, i) => (
+                    <div key={i} className="flex justify-between px-4 py-2 text-xs text-muted-foreground">
+                      <span>
+                        {item.qty > 1 && <span className="mr-1">{item.qty}×</span>}
+                        {item.name}
+                      </span>
+                      <span className="tabular-nums">{formatIDR(Math.round(item.amount * proportion))}</span>
+                    </div>
+                  ))}
+                  <div className="flex justify-between px-4 py-2 text-xs text-muted-foreground">
+                    <span>Subtotal</span>
+                    <span className="tabular-nums">{formatIDR(personSubtotal)}</span>
+                  </div>
+                  {expense.tax > 0 && (
+                    <div className="flex justify-between px-4 py-2 text-xs text-muted-foreground">
+                      <span>Tax ({expense.tax}%)</span>
+                      <span className="tabular-nums">{formatIDR(personTax)}</span>
+                    </div>
+                  )}
+                  {expense.serviceCharge > 0 && (
+                    <div className="flex justify-between px-4 py-2 text-xs text-muted-foreground">
+                      <span>Service ({expense.serviceCharge}%)</span>
+                      <span className="tabular-nums">{formatIDR(personService)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between px-4 py-2.5 text-xs font-semibold">
+                    <span>Total</span>
+                    <span className="tabular-nums">{formatIDR(amount)}</span>
+                  </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          )
+        })}
+      </Accordion>
+    )
+  }
+
+  // Flat split rows for non-receipt expenses
+  function FlatSplitRows() {
+    return (
+      <div className="rounded-xl border border-border/40 bg-muted/20 overflow-hidden divide-y divide-border/30">
+        {splitEntries.map(([userId, amount]) => (
+          <div key={userId} className="flex items-center justify-between px-3 py-2.5 text-sm">
+            <div className="flex items-center gap-2">
+              {loadingMembers ? (
+                <Skeleton className="h-4 w-24" />
+              ) : (
+                <span className="text-foreground">{memberNames[userId] ?? "Unknown"}</span>
+              )}
+              {!loadingMembers && isPaid(userId) && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+                  paid
+                </span>
+              )}
+            </div>
+            <span className="text-muted-foreground tabular-nums">{formatIDR(amount)}</span>
+          </div>
+        ))}
+      </div>
+    )
   }
 
   return (
@@ -135,7 +256,7 @@ export function ExpenseDetailSheet({
                   <p className="text-sm text-muted-foreground px-1">📝 {expense.notes}</p>
                 )}
 
-                {/* Receipt item breakdown with tabs */}
+                {/* Receipt breakdown with Overall / Per Person tabs */}
                 {expense.receiptData && (
                   <div className="space-y-2">
                     <p className="text-sm font-medium flex items-center gap-2">
@@ -157,9 +278,7 @@ export function ExpenseDetailSheet({
                           {expense.receiptData.items.map((item, i) => (
                             <div key={i} className="flex items-center justify-between px-3 py-2.5 text-sm">
                               <span className="text-foreground">
-                                {item.qty > 1 && (
-                                  <span className="text-muted-foreground mr-1">{item.qty}×</span>
-                                )}
+                                {item.qty > 1 && <span className="text-muted-foreground mr-1">{item.qty}×</span>}
                                 {item.name}
                               </span>
                               <span className="text-muted-foreground tabular-nums">{formatIDR(item.amount)}</span>
@@ -192,49 +311,25 @@ export function ExpenseDetailSheet({
                         </div>
                       </TabsContent>
                       <TabsContent value="perperson" className="mt-2">
-                        <div className="rounded-xl border border-border/40 bg-muted/20 overflow-hidden divide-y divide-border/30">
-                          {Object.entries(expense.splits ?? {}).map(([userId, amount]) => {
-                            const name = memberNames[userId] ?? "Unknown"
-                            const isPayer = userId === expense.paidBy
-                            return (
-                              <div key={userId} className="flex items-center justify-between px-3 py-2.5 text-sm">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-foreground">{name}</span>
-                                  {isPayer && (
-                                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">paid</span>
-                                  )}
-                                </div>
-                                <span className="text-muted-foreground tabular-nums">{formatIDR(amount)}</span>
-                              </div>
-                            )
-                          })}
-                        </div>
+                        {loadingMembers ? (
+                          <div className="space-y-2">
+                            {[...Array(splitEntries.length || 3)].map((_, i) => (
+                              <Skeleton key={i} className="h-10 w-full rounded-xl" />
+                            ))}
+                          </div>
+                        ) : (
+                          <ReceiptPerPersonRows />
+                        )}
                       </TabsContent>
                     </Tabs>
                   </div>
                 )}
 
                 {/* Per-person split for non-receipt expenses */}
-                {!expense.receiptData && Object.keys(expense.splits ?? {}).length > 0 && (
+                {!expense.receiptData && splitEntries.length > 0 && (
                   <div className="space-y-2">
                     <p className="text-sm font-medium">Split Details</p>
-                    <div className="rounded-xl border border-border/40 bg-muted/20 overflow-hidden divide-y divide-border/30">
-                      {Object.entries(expense.splits ?? {}).map(([userId, amount]) => {
-                        const name = memberNames[userId] ?? "Unknown"
-                        const isPayer = userId === expense.paidBy
-                        return (
-                          <div key={userId} className="flex items-center justify-between px-3 py-2.5 text-sm">
-                            <div className="flex items-center gap-2">
-                              <span className="text-foreground">{name}</span>
-                              {isPayer && (
-                                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">paid</span>
-                              )}
-                            </div>
-                            <span className="text-muted-foreground tabular-nums">{formatIDR(amount)}</span>
-                          </div>
-                        )
-                      })}
-                    </div>
+                    <FlatSplitRows />
                   </div>
                 )}
 
