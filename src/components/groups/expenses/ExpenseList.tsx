@@ -18,9 +18,10 @@ import { cn } from "@/lib/utils"
 interface Props {
   groupId: string
   onAddExpense?: () => void
+  onExpenseChanged?: () => void
 }
 
-export function ExpenseList({ groupId, onAddExpense }: Props) {
+export function ExpenseList({ groupId, onAddExpense, onExpenseChanged }: Props) {
   const [expenses, setExpenses] = useState<Expense[] | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [fetchError, setFetchError] = useState<string | null>(null)
@@ -199,9 +200,11 @@ export function ExpenseList({ groupId, onAddExpense }: Props) {
           onUpdated={() => {
             setSelectedExpense(null)
             fetchExpenses()
+            onExpenseChanged?.()
           }}
           onDeleted={(id) => {
             setExpenses((prev) => prev?.filter((e) => e.id !== id) ?? null)
+            onExpenseChanged?.()
           }}
         />
       )}

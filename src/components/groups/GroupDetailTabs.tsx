@@ -13,6 +13,11 @@ interface Props {
 
 export function GroupDetailTabs({ groupId }: Props) {
   const [addExpenseOpen, setAddExpenseOpen] = useState(false)
+  const [balanceRefreshKey, setBalanceRefreshKey] = useState(0)
+
+  function handleExpenseChanged() {
+    setBalanceRefreshKey((k) => k + 1)
+  }
 
   return (
     <Tabs defaultValue="expenses" className="w-full">
@@ -43,6 +48,7 @@ export function GroupDetailTabs({ groupId }: Props) {
         <ExpenseList
           groupId={groupId}
           onAddExpense={() => setAddExpenseOpen(true)}
+          onExpenseChanged={handleExpenseChanged}
         />
         <AddExpenseButton
           groupId={groupId}
@@ -52,7 +58,7 @@ export function GroupDetailTabs({ groupId }: Props) {
       </TabsContent>
 
       <TabsContent value="balances" className="mt-0">
-        <BalanceList groupId={groupId} />
+        <BalanceList groupId={groupId} refreshKey={balanceRefreshKey} />
       </TabsContent>
 
       <TabsContent value="activity" className="mt-0">

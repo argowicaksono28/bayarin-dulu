@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { Balance } from "@/types"
 import { useSettlement } from "@/hooks/useSettlement"
 import { simplifyDebts } from "@/lib/split-utils"
@@ -8,19 +8,21 @@ import { BalanceItem } from "./BalanceItem"
 import { BalanceListSkeleton } from "./BalanceListSkeleton"
 import { Card } from "@/components/ui/card"
 import { CheckCircle } from "lucide-react"
+import { createClient } from "@/lib/supabase/client"
 
 interface Props {
   groupId: string
+  refreshKey?: number
 }
 
-export function BalanceList({ groupId }: Props) {
+export function BalanceList({ groupId, refreshKey }: Props) {
   const [rawBalances, setRawBalances] = useState<Balance[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [fetchError, setFetchError] = useState<string | null>(null)
   const { balances, settle } = useSettlement(rawBalances)
+  const channelRef = useRef<ReturnType<ReturnType<typeof createClient>["channel"]> | null>(null)
 
-  useEffect(() => {
-    setIsLoading(true)
+  const doFetch = useCallback(() => {
     setFetchError(null)
     fetch(`/api/groups/${groupId}/balances`)
       .then(async (r) => {
@@ -40,28 +42,39 @@ export function BalanceList({ groupId }: Props) {
       })
   }, [groupId])
 
-  if (isLoading) return <BalanceListSkeleton />
-
-  function refetch() {
+  // Initial fetch + real-time subscription on settlements
+  useEffect(() => {
     setIsLoading(true)
-    setFetchError(null)
-    fetch(`/api/groups/${groupId}/balances`)
-      .then(async (r) => {
-        const data = await r.json()
-        if (!r.ok) {
-          setFetchError(data.error ?? "Failed to load balances")
-          setRawBalances([])
-        } else {
-          setRawBalances(Array.isArray(data) ? data : [])
-        }
-        setIsLoading(false)
-      })
-      .catch(() => {
-        setFetchError("Network error — could not load balances")
-        setRawBalances([])
-        setIsLoading(false)
-      })
-  }
+    doFetch()
+
+    const supabase = createClient()
+    if (channelRef.current) {
+      supabase.removeChannel(channelRef.current)
+      channelRef.current = null
+    }
+    const channel = supabase
+      .channel(`balances-settlements:${groupId}:${Date.now()}`)
+      .on(
+        "postgres_changes" as any,
+        { event: "*", schema: "public", table: "settlements", filter: `group_id=eq.${groupId}` },
+        () => doFetch()
+      )
+      .subscribe()
+    channelRef.current = channel
+    return () => {
+      supabase.removeChannel(channel)
+      channelRef.current = null
+    }
+  }, [groupId, doFetch])
+
+  // Re-fetch when parent signals a change (e.g. expense deleted)
+  useEffect(() => {
+    if (refreshKey === undefined || refreshKey === 0) return
+    setIsLoading(true)
+    doFetch()
+  }, [refreshKey, doFetch])
+
+  if (isLoading) return <BalanceListSkeleton />
 
   if (fetchError) {
     return (
@@ -69,7 +82,7 @@ export function BalanceList({ groupId }: Props) {
         <p className="text-sm text-destructive font-medium">{fetchError}</p>
         <p className="text-xs text-muted-foreground mt-1">Check your connection and try again</p>
         <button
-          onClick={refetch}
+          onClick={() => { setIsLoading(true); doFetch() }}
           className="mt-3 text-sm text-primary hover:underline font-medium"
         >
           Retry

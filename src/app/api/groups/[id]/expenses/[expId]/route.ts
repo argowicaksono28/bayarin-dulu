@@ -74,8 +74,14 @@ export async function DELETE(
     .eq("id", params.expId)
     .single()
 
-  const { error } = await supabase.from("expenses").delete().eq("id", params.expId)
+  const { data: deleted, error } = await supabase
+    .from("expenses")
+    .delete()
+    .eq("id", params.expId)
+    .select("id")
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (!deleted || deleted.length === 0)
+    return NextResponse.json({ error: "Not allowed to delete this expense" }, { status: 403 })
 
   const { error: actErr } = await supabase.from("activities").insert({
     group_id: params.id,
