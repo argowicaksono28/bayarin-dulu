@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import {
   Sheet,
   SheetContent,
@@ -17,6 +17,7 @@ import type { Expense } from "@/types"
 import { Trash2, Loader2, Pencil, ChevronLeft, Package, ScanLine } from "lucide-react"
 import { AddExpenseForm } from "@/components/add-expense/AddExpenseForm"
 import { CATEGORY_OPTIONS } from "@/lib/constants"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 
 interface Props {
   expense: Expense
@@ -38,6 +39,20 @@ export function ExpenseDetailSheet({
   const [mode, setMode] = useState<"view" | "edit">("view")
   const [deleting, setDeleting] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [memberNames, setMemberNames] = useState<Record<string, string>>({})
+
+  useEffect(() => {
+    if (!open) return
+    Promise.all([
+      fetch(`/api/groups/${groupId}/members`).then(r => r.json()),
+      fetch(`/api/groups/${groupId}/guests`).then(r => r.json()),
+    ]).then(([members, guests]) => {
+      const map: Record<string, string> = {}
+      for (const m of (members ?? [])) map[m.id] = m.name
+      for (const g of (guests ?? [])) map[g.id] = g.name
+      setMemberNames(map)
+    })
+  }, [open, groupId])
 
   const category = CATEGORY_OPTIONS.find((c) => c.emoji === expense.category)
   const Icon = category?.icon ?? Package
@@ -120,7 +135,7 @@ export function ExpenseDetailSheet({
                   <p className="text-sm text-muted-foreground px-1">📝 {expense.notes}</p>
                 )}
 
-                {/* Receipt item breakdown */}
+                {/* Receipt item breakdown with tabs */}
                 {expense.receiptData && (
                   <div className="space-y-2">
                     <p className="text-sm font-medium flex items-center gap-2">
@@ -132,42 +147,93 @@ export function ExpenseDetailSheet({
                         </span>
                       )}
                     </p>
+                    <Tabs defaultValue="overall">
+                      <TabsList className="w-full">
+                        <TabsTrigger value="overall" className="flex-1">Overall</TabsTrigger>
+                        <TabsTrigger value="perperson" className="flex-1">Per Person</TabsTrigger>
+                      </TabsList>
+                      <TabsContent value="overall" className="mt-2">
+                        <div className="rounded-xl border border-border/40 bg-muted/20 overflow-hidden divide-y divide-border/30">
+                          {expense.receiptData.items.map((item, i) => (
+                            <div key={i} className="flex items-center justify-between px-3 py-2.5 text-sm">
+                              <span className="text-foreground">
+                                {item.qty > 1 && (
+                                  <span className="text-muted-foreground mr-1">{item.qty}×</span>
+                                )}
+                                {item.name}
+                              </span>
+                              <span className="text-muted-foreground tabular-nums">{formatIDR(item.amount)}</span>
+                            </div>
+                          ))}
+                          <div className="flex justify-between px-3 py-2 text-sm text-muted-foreground bg-muted/30">
+                            <span>Subtotal</span>
+                            <span className="tabular-nums">{formatIDR(expense.receiptData.subtotal)}</span>
+                          </div>
+                          {expense.tax > 0 && (
+                            <div className="flex justify-between px-3 py-2 text-sm text-muted-foreground">
+                              <span>Tax ({expense.tax}%)</span>
+                              <span className="tabular-nums">
+                                {formatIDR(Math.round(expense.receiptData.subtotal * expense.tax / 100))}
+                              </span>
+                            </div>
+                          )}
+                          {expense.serviceCharge > 0 && (
+                            <div className="flex justify-between px-3 py-2 text-sm text-muted-foreground">
+                              <span>Service ({expense.serviceCharge}%)</span>
+                              <span className="tabular-nums">
+                                {formatIDR(Math.round(expense.receiptData.subtotal * expense.serviceCharge / 100))}
+                              </span>
+                            </div>
+                          )}
+                          <div className="flex justify-between px-3 py-3 text-sm font-semibold bg-muted/20">
+                            <span>Total</span>
+                            <span className="tabular-nums">{formatIDR(expense.amount)}</span>
+                          </div>
+                        </div>
+                      </TabsContent>
+                      <TabsContent value="perperson" className="mt-2">
+                        <div className="rounded-xl border border-border/40 bg-muted/20 overflow-hidden divide-y divide-border/30">
+                          {Object.entries(expense.splits ?? {}).map(([userId, amount]) => {
+                            const name = memberNames[userId] ?? "Unknown"
+                            const isPayer = userId === expense.paidBy
+                            return (
+                              <div key={userId} className="flex items-center justify-between px-3 py-2.5 text-sm">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-foreground">{name}</span>
+                                  {isPayer && (
+                                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">paid</span>
+                                  )}
+                                </div>
+                                <span className="text-muted-foreground tabular-nums">{formatIDR(amount)}</span>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </TabsContent>
+                    </Tabs>
+                  </div>
+                )}
+
+                {/* Per-person split for non-receipt expenses */}
+                {!expense.receiptData && Object.keys(expense.splits ?? {}).length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium">Split Details</p>
                     <div className="rounded-xl border border-border/40 bg-muted/20 overflow-hidden divide-y divide-border/30">
-                      {expense.receiptData.items.map((item, i) => (
-                        <div key={i} className="flex items-center justify-between px-3 py-2.5 text-sm">
-                          <span className="text-foreground">
-                            {item.qty > 1 && (
-                              <span className="text-muted-foreground mr-1">{item.qty}×</span>
-                            )}
-                            {item.name}
-                          </span>
-                          <span className="text-muted-foreground tabular-nums">{formatIDR(item.amount)}</span>
-                        </div>
-                      ))}
-                      <div className="flex justify-between px-3 py-2 text-sm text-muted-foreground bg-muted/30">
-                        <span>Subtotal</span>
-                        <span className="tabular-nums">{formatIDR(expense.receiptData.subtotal)}</span>
-                      </div>
-                      {expense.tax > 0 && (
-                        <div className="flex justify-between px-3 py-2 text-sm text-muted-foreground">
-                          <span>Tax ({expense.tax}%)</span>
-                          <span className="tabular-nums">
-                            {formatIDR(Math.round(expense.receiptData.subtotal * expense.tax / 100))}
-                          </span>
-                        </div>
-                      )}
-                      {expense.serviceCharge > 0 && (
-                        <div className="flex justify-between px-3 py-2 text-sm text-muted-foreground">
-                          <span>Service ({expense.serviceCharge}%)</span>
-                          <span className="tabular-nums">
-                            {formatIDR(Math.round(expense.receiptData.subtotal * expense.serviceCharge / 100))}
-                          </span>
-                        </div>
-                      )}
-                      <div className="flex justify-between px-3 py-3 text-sm font-semibold bg-muted/20">
-                        <span>Total</span>
-                        <span className="tabular-nums">{formatIDR(expense.amount)}</span>
-                      </div>
+                      {Object.entries(expense.splits ?? {}).map(([userId, amount]) => {
+                        const name = memberNames[userId] ?? "Unknown"
+                        const isPayer = userId === expense.paidBy
+                        return (
+                          <div key={userId} className="flex items-center justify-between px-3 py-2.5 text-sm">
+                            <div className="flex items-center gap-2">
+                              <span className="text-foreground">{name}</span>
+                              {isPayer && (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">paid</span>
+                              )}
+                            </div>
+                            <span className="text-muted-foreground tabular-nums">{formatIDR(amount)}</span>
+                          </div>
+                        )
+                      })}
                     </div>
                   </div>
                 )}

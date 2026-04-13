@@ -1,7 +1,7 @@
 import { formatIDR, formatDate } from "@/lib/formatters"
 import type { Expense } from "@/types"
 import { cn } from "@/lib/utils"
-import { ChevronRight, Package } from "lucide-react"
+import { ChevronRight, Package, ScanLine } from "lucide-react"
 import { CATEGORY_OPTIONS } from "@/lib/constants"
 
 const splitTypeLabels: Record<string, string> = {
@@ -33,7 +33,10 @@ export function ExpenseItem({ expense, onClick }: Props) {
 
       {/* Info */}
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-foreground truncate">{expense.description}</p>
+        <div className="flex items-center gap-1.5 min-w-0">
+          <p className="text-sm font-medium text-foreground truncate">{expense.description}</p>
+          {expense.receiptData && <ScanLine className="h-3 w-3 text-primary shrink-0" />}
+        </div>
         <p className="text-xs text-muted-foreground mt-0.5">
           Paid by {payerName} · {formatDate(expense.createdAt)}
         </p>

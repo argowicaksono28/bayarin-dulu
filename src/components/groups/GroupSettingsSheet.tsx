@@ -140,8 +140,8 @@ export function GroupSettingsSheet({ group }: Props) {
             <SheetTitle>Group Settings</SheetTitle>
           </SheetHeader>
 
-          <ScrollArea className="flex-1 px-4 pb-8">
-            <div className="space-y-5 pb-6">
+          <ScrollArea className="flex-1">
+            <div className="px-4 pb-8 space-y-5">
               {/* Preview banner */}
               <div className={cn("rounded-xl h-20 flex items-center justify-center transition-colors", coverColor)}>
                 <PreviewIcon className="h-10 w-10 text-white" />
