@@ -11,7 +11,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Settings, UserPlus, Loader2, LogOut, Link, Copy, Check, Eye, EyeOff } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
@@ -140,8 +139,8 @@ export function GroupSettingsSheet({ group }: Props) {
             <SheetTitle>Group Settings</SheetTitle>
           </SheetHeader>
 
-          <ScrollArea className="flex-1">
-            <div className="px-4 pb-8 space-y-5 w-full min-w-0">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden">
+            <div className="px-4 pb-8 space-y-5">
               {/* Preview banner */}
               <div className={cn("rounded-xl h-20 flex items-center justify-center transition-colors", coverColor)}>
                 <PreviewIcon className="h-10 w-10 text-white" />
@@ -303,7 +302,7 @@ export function GroupSettingsSheet({ group }: Props) {
                 </button>
               </div>
             </div>
-          </ScrollArea>
+          </div>
         </SheetContent>
       </Sheet>
 
