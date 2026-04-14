@@ -24,6 +24,7 @@ export function BalanceList({ groupId, refreshKey }: Props) {
   const channelRef = useRef<ReturnType<ReturnType<typeof createClient>["channel"]> | null>(null)
 
   const [expenses, setExpenses] = useState<Expense[]>([])
+  const [viewMode, setViewMode] = useState<"simplified" | "detailed">("simplified")
 
   const doFetch = useCallback(() => {
     setFetchError(null)
@@ -98,8 +99,6 @@ export function BalanceList({ groupId, refreshKey }: Props) {
       </div>
     )
   }
-
-  const [viewMode, setViewMode] = useState<"simplified" | "detailed">("simplified")
 
   // Re-attach profiles lost during simplification
   const profileLookup: Record<string, Balance["fromProfile"]> = {}
