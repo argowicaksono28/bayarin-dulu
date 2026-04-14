@@ -10,10 +10,7 @@ import {
   Package, Users, ScanLine, ChevronRight, X,
   Loader2, XCircle, ArrowRight, Clock,
 } from "lucide-react"
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
-import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import {
   Accordion,
@@ -291,18 +288,26 @@ export default function PublicViewPage() {
         🔒 View-only access · Powered by Bayarin Dulu
       </p>
 
-      {/* Expense detail sheet */}
-      <Sheet open={!!selected} onOpenChange={(open) => { if (!open) setSelected(null) }}>
-        <SheetContent side="bottom" className="rounded-t-2xl bg-card border-border/50 h-[85vh] p-0 flex flex-col relative">
-          <SheetHeader className="px-4 pt-4 pb-3 shrink-0 flex-row items-center justify-between">
-            <SheetTitle>Expense Details</SheetTitle>
-            <button onClick={() => setSelected(null)} className="text-muted-foreground hover:text-foreground">
-              <X className="h-5 w-5" />
-            </button>
-          </SheetHeader>
-          <ScrollArea className="flex-1">
-            <div className="px-4 pb-8 space-y-5">
-              {selected && (() => {
+      {/* Expense detail drawer — plain CSS, no Radix portal */}
+      {selected && (
+        <div className="fixed inset-0 z-50">
+          {/* Overlay */}
+          <div
+            className="absolute inset-0 bg-black/80 animate-in fade-in-0 duration-300"
+            onClick={() => setSelected(null)}
+          />
+          {/* Drawer */}
+          <div className="absolute inset-x-0 bottom-0 h-[85vh] rounded-t-2xl bg-card border-t border-border/50 flex flex-col animate-in slide-in-from-bottom duration-300">
+            {/* Header */}
+            <div className="px-4 pt-4 pb-3 shrink-0 flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-foreground">Expense Details</h2>
+              <button onClick={() => setSelected(null)} className="text-muted-foreground hover:text-foreground">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            {/* Scrollable content */}
+            <div className="flex-1 overflow-y-auto px-4 pb-8 space-y-5">
+              {(() => {
                 const cat = CATEGORY_OPTIONS.find((c) => c.emoji === selected.category)
                 const Icon = cat?.icon ?? Package
                 const splitEntries = Object.entries(selected.splits ?? {})
@@ -466,9 +471,9 @@ export default function PublicViewPage() {
                 )
               })()}
             </div>
-          </ScrollArea>
-        </SheetContent>
-      </Sheet>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
