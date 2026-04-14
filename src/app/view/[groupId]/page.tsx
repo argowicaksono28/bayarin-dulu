@@ -306,76 +306,11 @@ export default function PublicViewPage() {
                 const cat = CATEGORY_OPTIONS.find((c) => c.emoji === selected.category)
                 const Icon = cat?.icon ?? Package
                 const splitEntries = Object.entries(selected.splits ?? {})
-
-                function ReceiptPerPersonRows() {
-                  const rd = selected!.receiptData!
-                  return (
-                    <Accordion type="multiple" className="rounded-xl border border-border/40 bg-muted/20 overflow-hidden divide-y divide-border/30">
-                      {splitEntries.map(([userId, amount]) => {
-                        const proportion = selected!.amount > 0 ? amount / selected!.amount : 0
-                        
-                        const personalItems = (rd.items || []).map(item => {
-                          if (item.assignments) {
-                            if (item.assignments.includes(userId)) {
-                              return { ...item, assignedShare: Math.round(item.amount / item.assignments.length) }
-                            }
-                            return null
-                          }
-                          return { ...item, assignedShare: Math.round(item.amount * proportion) }
-                        }).filter((item): item is NonNullable<typeof item> => item !== null)
-
-                        const personSubtotal = personalItems.reduce((sum, item) => sum + item.assignedShare, 0)
-                        const personTax = selected!.tax > 0 ? Math.round(personSubtotal * selected!.tax / 100) : 0
-                        const personService = selected!.serviceCharge > 0 ? Math.round(personSubtotal * selected!.serviceCharge / 100) : 0
-
-                        return (
-                          <AccordionItem key={userId} value={userId} className="border-0">
-                            <AccordionTrigger className="px-3 py-2.5 hover:no-underline hover:bg-white/5">
-                              <div className="flex items-center gap-2 flex-1 min-w-0 mr-2">
-                                <span className="text-sm text-foreground truncate">{nameMap[userId] ?? "Unknown"}</span>
-                                {isPaid(userId, selected!.paidBy) && (
-                                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 shrink-0">paid</span>
-                                )}
-                              </div>
-                              <span className="text-sm text-muted-foreground tabular-nums mr-2">{formatIDR(amount)}</span>
-                            </AccordionTrigger>
-                            <AccordionContent className="pb-0">
-                              <div className="border-t border-border/30 divide-y divide-border/20 bg-muted/30">
-                                {personalItems.map((item, i) => (
-                                  <div key={i} className="flex justify-between px-4 py-2 text-xs text-muted-foreground">
-                                    <span>{item.qty > 1 && <span className="mr-1">{item.qty}×</span>}{item.name}</span>
-                                    <span className="tabular-nums">{formatIDR(item.assignedShare)}</span>
-                                  </div>
-                                ))}
-                                {personalItems.length > 0 && (
-                                  <div className="flex justify-between px-4 py-2 text-xs text-muted-foreground">
-                                    <span>Subtotal</span><span className="tabular-nums">{formatIDR(personSubtotal)}</span>
-                                  </div>
-                                )}
-                                {selected!.tax > 0 && (
-                                  <div className="flex justify-between px-4 py-2 text-xs text-muted-foreground">
-                                    <span>Tax ({selected!.tax}%)</span><span className="tabular-nums">{formatIDR(personTax)}</span>
-                                  </div>
-                                )}
-                                {selected!.serviceCharge > 0 && (
-                                  <div className="flex justify-between px-4 py-2 text-xs text-muted-foreground">
-                                    <span>Service ({selected!.serviceCharge}%)</span><span className="tabular-nums">{formatIDR(personService)}</span>
-                                  </div>
-                                )}
-                                <div className="flex justify-between px-4 py-2.5 text-xs font-semibold">
-                                  <span>Total</span><span className="tabular-nums">{formatIDR(amount)}</span>
-                                </div>
-                              </div>
-                            </AccordionContent>
-                          </AccordionItem>
-                        )
-                      })}
-                    </Accordion>
-                  )
-                }
+                const rd = selected.receiptData
 
                 return (
                   <>
+                    {/* Detail card */}
                     <div className="flex items-center gap-4 p-4 rounded-xl bg-muted/30 border border-border/40">
                       <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center shrink-0">
                         <Icon className="h-5 w-5 text-foreground" />
@@ -383,7 +318,7 @@ export default function PublicViewPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <p className="font-semibold text-base truncate">{selected.description}</p>
-                          {selected.receiptData && (
+                          {rd && (
                             <span className="flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 shrink-0">
                               <ScanLine className="h-2.5 w-2.5" /> Receipt
                             </span>
@@ -401,14 +336,14 @@ export default function PublicViewPage() {
                       <p className="text-sm text-muted-foreground px-1">📝 {selected.notes}</p>
                     )}
 
-                    {/* Receipt breakdown with tabs */}
-                    {selected.receiptData && (
+                    {/* Receipt breakdown */}
+                    {rd && (
                       <div className="space-y-2">
                         <p className="text-sm font-medium flex items-center gap-2">
                           <ScanLine className="h-4 w-4 text-muted-foreground" />
                           Receipt Breakdown
-                          {selected.receiptData.restaurantName && (
-                            <span className="text-xs text-muted-foreground font-normal">— {selected.receiptData.restaurantName}</span>
+                          {rd.restaurantName && (
+                            <span className="text-xs text-muted-foreground font-normal">— {rd.restaurantName}</span>
                           )}
                         </p>
                         <Tabs defaultValue="overall">
@@ -418,25 +353,25 @@ export default function PublicViewPage() {
                           </TabsList>
                           <TabsContent value="overall" className="mt-2">
                             <div className="rounded-xl border border-border/40 bg-muted/20 overflow-hidden divide-y divide-border/30">
-                              {selected.receiptData.items.map((item, i) => (
+                              {rd.items.map((item, i) => (
                                 <div key={i} className="flex items-center justify-between px-3 py-2.5 text-sm">
                                   <span>{item.qty > 1 && <span className="text-muted-foreground mr-1">{item.qty}×</span>}{item.name}</span>
                                   <span className="text-muted-foreground tabular-nums">{formatIDR(item.amount)}</span>
                                 </div>
                               ))}
                               <div className="flex justify-between px-3 py-2 text-sm text-muted-foreground bg-muted/30">
-                                <span>Subtotal</span><span className="tabular-nums">{formatIDR(selected.receiptData.subtotal)}</span>
+                                <span>Subtotal</span><span className="tabular-nums">{formatIDR(rd.subtotal)}</span>
                               </div>
                               {selected.tax > 0 && (
                                 <div className="flex justify-between px-3 py-2 text-sm text-muted-foreground">
                                   <span>Tax ({selected.tax}%)</span>
-                                  <span className="tabular-nums">{formatIDR(Math.round(selected.receiptData.subtotal * selected.tax / 100))}</span>
+                                  <span className="tabular-nums">{formatIDR(Math.round(rd.subtotal * selected.tax / 100))}</span>
                                 </div>
                               )}
                               {selected.serviceCharge > 0 && (
                                 <div className="flex justify-between px-3 py-2 text-sm text-muted-foreground">
                                   <span>Service ({selected.serviceCharge}%)</span>
-                                  <span className="tabular-nums">{formatIDR(Math.round(selected.receiptData.subtotal * selected.serviceCharge / 100))}</span>
+                                  <span className="tabular-nums">{formatIDR(Math.round(rd.subtotal * selected.serviceCharge / 100))}</span>
                                 </div>
                               )}
                               <div className="flex justify-between px-3 py-3 text-sm font-semibold bg-muted/20">
@@ -445,18 +380,71 @@ export default function PublicViewPage() {
                             </div>
                           </TabsContent>
                           <TabsContent value="perperson" className="mt-2">
-                            {splitEntries.length === 0 ? (
-                              <div className="space-y-2">{[...Array(3)].map((_, i) => <Skeleton key={i} className="h-10 w-full rounded-xl" />)}</div>
-                            ) : (
-                              <ReceiptPerPersonRows />
-                            )}
+                            <Accordion type="multiple" className="rounded-xl border border-border/40 bg-muted/20 overflow-hidden divide-y divide-border/30">
+                              {splitEntries.map(([userId, amount]) => {
+                                const proportion = selected.amount > 0 ? amount / selected.amount : 0
+                                const personalItems = (rd.items || []).map(item => {
+                                  if (item.assignments) {
+                                    if (item.assignments.includes(userId)) {
+                                      return { ...item, assignedShare: Math.round(item.amount / item.assignments.length) }
+                                    }
+                                    return null
+                                  }
+                                  return { ...item, assignedShare: Math.round(item.amount * proportion) }
+                                }).filter((item): item is NonNullable<typeof item> => item !== null)
+                                const personSubtotal = personalItems.reduce((sum, item) => sum + item.assignedShare, 0)
+                                const personTax = selected.tax > 0 ? Math.round(personSubtotal * selected.tax / 100) : 0
+                                const personService = selected.serviceCharge > 0 ? Math.round(personSubtotal * selected.serviceCharge / 100) : 0
+                                return (
+                                  <AccordionItem key={userId} value={userId} className="border-0">
+                                    <AccordionTrigger className="px-3 py-2.5 hover:no-underline hover:bg-white/5">
+                                      <div className="flex items-center gap-2 flex-1 min-w-0 mr-2">
+                                        <span className="text-sm text-foreground truncate">{nameMap[userId] ?? "Unknown"}</span>
+                                        {isPaid(userId, selected.paidBy) && (
+                                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 shrink-0">paid</span>
+                                        )}
+                                      </div>
+                                      <span className="text-sm text-muted-foreground tabular-nums mr-2">{formatIDR(amount)}</span>
+                                    </AccordionTrigger>
+                                    <AccordionContent className="pb-0">
+                                      <div className="border-t border-border/30 divide-y divide-border/20 bg-muted/30">
+                                        {personalItems.map((item, i) => (
+                                          <div key={i} className="flex justify-between px-4 py-2 text-xs text-muted-foreground">
+                                            <span>{item.qty > 1 && <span className="mr-1">{item.qty}×</span>}{item.name}</span>
+                                            <span className="tabular-nums">{formatIDR(item.assignedShare)}</span>
+                                          </div>
+                                        ))}
+                                        {personalItems.length > 0 && (
+                                          <div className="flex justify-between px-4 py-2 text-xs text-muted-foreground">
+                                            <span>Subtotal</span><span className="tabular-nums">{formatIDR(personSubtotal)}</span>
+                                          </div>
+                                        )}
+                                        {selected.tax > 0 && (
+                                          <div className="flex justify-between px-4 py-2 text-xs text-muted-foreground">
+                                            <span>Tax ({selected.tax}%)</span><span className="tabular-nums">{formatIDR(personTax)}</span>
+                                          </div>
+                                        )}
+                                        {selected.serviceCharge > 0 && (
+                                          <div className="flex justify-between px-4 py-2 text-xs text-muted-foreground">
+                                            <span>Service ({selected.serviceCharge}%)</span><span className="tabular-nums">{formatIDR(personService)}</span>
+                                          </div>
+                                        )}
+                                        <div className="flex justify-between px-4 py-2.5 text-xs font-semibold">
+                                          <span>Total</span><span className="tabular-nums">{formatIDR(amount)}</span>
+                                        </div>
+                                      </div>
+                                    </AccordionContent>
+                                  </AccordionItem>
+                                )
+                              })}
+                            </Accordion>
                           </TabsContent>
                         </Tabs>
                       </div>
                     )}
 
                     {/* Split details for non-receipt expenses */}
-                    {!selected.receiptData && splitEntries.length > 0 && (
+                    {!rd && splitEntries.length > 0 && (
                       <div className="space-y-2">
                         <p className="text-sm font-medium">Split Details</p>
                         <div className="rounded-xl border border-border/40 bg-muted/20 overflow-hidden divide-y divide-border/30">
