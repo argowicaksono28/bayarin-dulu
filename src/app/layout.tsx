@@ -4,6 +4,7 @@ import { ThemeProvider } from "@/providers/ThemeProvider"
 import { AppShell } from "@/components/layout/AppShell"
 import { Toaster } from "@/components/ui/sonner"
 import { Analytics } from "@vercel/analytics/next"
+import { SpeedInsights } from "@vercel/speed-insights/next"
 
 export const metadata: Metadata = {
   title: "Bayarin Dulu",
@@ -27,6 +28,7 @@ export default function RootLayout({
           <Toaster position="bottom-center" richColors />
         </ThemeProvider>
         <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   )
