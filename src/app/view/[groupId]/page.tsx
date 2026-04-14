@@ -64,6 +64,8 @@ interface Activity {
 }
 
 interface ComputedBalance {
+  fromId: string
+  toId: string
   from: string
   to: string
   amount: number
@@ -97,6 +99,8 @@ function computePublicBalances(
       const from = v > 0 ? a : b
       const to = v > 0 ? b : a
       return {
+        fromId: from,
+        toId: to,
         from: nameMap[from] ?? "Unknown",
         to: nameMap[to] ?? "Unknown",
         amount: Math.abs(Math.round(v)),
@@ -144,7 +148,7 @@ export default function PublicViewPage() {
 
   function isPaid(userId: string, paidBy: string): boolean {
     if (userId === paidBy) return true
-    return !settlements.some((s) => s.fromUserId === userId && s.toUserId === paidBy)
+    return !computedBalances.some((b) => b.fromId === userId && b.toId === paidBy)
   }
 
   const groupIcon = GROUP_ICON_OPTIONS.find((o) => o.key === group?.emoji)
@@ -309,9 +313,21 @@ export default function PublicViewPage() {
                     <Accordion type="multiple" className="rounded-xl border border-border/40 bg-muted/20 overflow-hidden divide-y divide-border/30">
                       {splitEntries.map(([userId, amount]) => {
                         const proportion = selected!.amount > 0 ? amount / selected!.amount : 0
-                        const personSubtotal = Math.round(rd.subtotal * proportion)
-                        const personTax = selected!.tax > 0 ? Math.round(rd.subtotal * proportion * selected!.tax / 100) : 0
-                        const personService = selected!.serviceCharge > 0 ? Math.round(rd.subtotal * proportion * selected!.serviceCharge / 100) : 0
+                        
+                        const personalItems = (rd.items || []).map(item => {
+                          if (item.assignments) {
+                            if (item.assignments.includes(userId)) {
+                              return { ...item, assignedShare: Math.round(item.amount / item.assignments.length) }
+                            }
+                            return null
+                          }
+                          return { ...item, assignedShare: Math.round(item.amount * proportion) }
+                        }).filter((item): item is NonNullable<typeof item> => item !== null)
+
+                        const personSubtotal = personalItems.reduce((sum, item) => sum + item.assignedShare, 0)
+                        const personTax = selected!.tax > 0 ? Math.round(personSubtotal * selected!.tax / 100) : 0
+                        const personService = selected!.serviceCharge > 0 ? Math.round(personSubtotal * selected!.serviceCharge / 100) : 0
+
                         return (
                           <AccordionItem key={userId} value={userId} className="border-0">
                             <AccordionTrigger className="px-3 py-2.5 hover:no-underline hover:bg-white/5">
@@ -325,15 +341,17 @@ export default function PublicViewPage() {
                             </AccordionTrigger>
                             <AccordionContent className="pb-0">
                               <div className="border-t border-border/30 divide-y divide-border/20 bg-muted/30">
-                                {rd.items.map((item, i) => (
+                                {personalItems.map((item, i) => (
                                   <div key={i} className="flex justify-between px-4 py-2 text-xs text-muted-foreground">
                                     <span>{item.qty > 1 && <span className="mr-1">{item.qty}×</span>}{item.name}</span>
-                                    <span className="tabular-nums">{formatIDR(Math.round(item.amount * proportion))}</span>
+                                    <span className="tabular-nums">{formatIDR(item.assignedShare)}</span>
                                   </div>
                                 ))}
-                                <div className="flex justify-between px-4 py-2 text-xs text-muted-foreground">
-                                  <span>Subtotal</span><span className="tabular-nums">{formatIDR(personSubtotal)}</span>
-                                </div>
+                                {personalItems.length > 0 && (
+                                  <div className="flex justify-between px-4 py-2 text-xs text-muted-foreground">
+                                    <span>Subtotal</span><span className="tabular-nums">{formatIDR(personSubtotal)}</span>
+                                  </div>
+                                )}
                                 {selected!.tax > 0 && (
                                   <div className="flex justify-between px-4 py-2 text-xs text-muted-foreground">
                                     <span>Tax ({selected!.tax}%)</span><span className="tabular-nums">{formatIDR(personTax)}</span>

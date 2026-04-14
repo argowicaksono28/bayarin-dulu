@@ -274,7 +274,12 @@ export function ReceiptScannerSheet({ open, onOpenChange, receipt, members, onCo
       splits: memberSplits,
       receiptData: {
         restaurantName,
-        items: items.map(({ name, qty, amount }) => ({ name, qty, amount })),
+        items: items.map(({ id, name, qty, amount }) => ({ 
+          name, 
+          qty, 
+          amount,
+          assignments: assignments[id] ?? members.map(m => m.id)
+        })),
         subtotal: itemsSubtotal,
       },
     })

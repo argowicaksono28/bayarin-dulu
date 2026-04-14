@@ -116,9 +116,20 @@ export function ExpenseDetailSheet({
       <Accordion type="multiple" className="rounded-xl border border-border/40 bg-muted/20 overflow-hidden divide-y divide-border/30">
         {splitEntries.map(([userId, amount]) => {
           const proportion = expense.amount > 0 ? amount / expense.amount : 0
-          const personSubtotal = Math.round(rd.subtotal * proportion)
-          const personTax = expense.tax > 0 ? Math.round(rd.subtotal * proportion * expense.tax / 100) : 0
-          const personService = expense.serviceCharge > 0 ? Math.round(rd.subtotal * proportion * expense.serviceCharge / 100) : 0
+          
+          const personalItems = (rd.items || []).map(item => {
+            if (item.assignments) {
+              if (item.assignments.includes(userId)) {
+                return { ...item, assignedShare: Math.round(item.amount / item.assignments.length) }
+              }
+              return null
+            }
+            return { ...item, assignedShare: Math.round(item.amount * proportion) }
+          }).filter((item): item is NonNullable<typeof item> => item !== null)
+
+          const personSubtotal = personalItems.reduce((sum, item) => sum + item.assignedShare, 0)
+          const personTax = expense.tax > 0 ? Math.round(personSubtotal * expense.tax / 100) : 0
+          const personService = expense.serviceCharge > 0 ? Math.round(personSubtotal * expense.serviceCharge / 100) : 0
 
           return (
             <AccordionItem key={userId} value={userId} className="border-0">
@@ -141,19 +152,21 @@ export function ExpenseDetailSheet({
               </AccordionTrigger>
               <AccordionContent className="pb-0">
                 <div className="border-t border-border/30 divide-y divide-border/20 bg-muted/30">
-                  {rd.items.map((item, i) => (
+                  {personalItems.map((item, i) => (
                     <div key={i} className="flex justify-between px-4 py-2 text-xs text-muted-foreground">
                       <span>
                         {item.qty > 1 && <span className="mr-1">{item.qty}×</span>}
                         {item.name}
                       </span>
-                      <span className="tabular-nums">{formatIDR(Math.round(item.amount * proportion))}</span>
+                      <span className="tabular-nums">{formatIDR(item.assignedShare)}</span>
                     </div>
                   ))}
-                  <div className="flex justify-between px-4 py-2 text-xs text-muted-foreground">
-                    <span>Subtotal</span>
-                    <span className="tabular-nums">{formatIDR(personSubtotal)}</span>
-                  </div>
+                  {personalItems.length > 0 && (
+                    <div className="flex justify-between px-4 py-2 text-xs text-muted-foreground">
+                      <span>Subtotal</span>
+                      <span className="tabular-nums">{formatIDR(personSubtotal)}</span>
+                    </div>
+                  )}
                   {expense.tax > 0 && (
                     <div className="flex justify-between px-4 py-2 text-xs text-muted-foreground">
                       <span>Tax ({expense.tax}%)</span>
