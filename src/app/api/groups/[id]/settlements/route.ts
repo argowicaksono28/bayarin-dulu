@@ -1,6 +1,33 @@
 import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 
+export async function GET(request: Request, { params }: { params: { id: string } }) {
+  const supabase = createClient(request as any)
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  const { data, error } = await supabase
+    .from("settlements")
+    .select("*")
+    .eq("group_id", params.id)
+    .order("settled_at", { ascending: false })
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  
+  // Transform to camelCase
+  const settlements = (data ?? []).map((s) => ({
+    id: s.id,
+    groupId: s.group_id,
+    fromUserId: s.from_user_id,
+    toUserId: s.to_user_id,
+    amount: s.amount,
+    settledAt: s.settled_at,
+    status: s.status,
+  }))
+
+  return NextResponse.json(settlements)
+}
+
 export async function POST(request: Request, { params }: { params: { id: string } }) {
   const supabase = createClient(request as any)
   const { data: { user }, error: authError } = await supabase.auth.getUser()

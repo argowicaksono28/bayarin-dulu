@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef, useCallback } from "react"
-import { Balance, Expense } from "@/types"
+import { Balance, Expense, Settlement } from "@/types"
 import { cn } from "@/lib/utils"
 import { useSettlement } from "@/hooks/useSettlement"
 import { simplifyDebts } from "@/lib/split-utils"
@@ -24,22 +24,26 @@ export function BalanceList({ groupId, refreshKey }: Props) {
   const channelRef = useRef<ReturnType<ReturnType<typeof createClient>["channel"]> | null>(null)
 
   const [expenses, setExpenses] = useState<Expense[]>([])
+  const [settlements, setSettlements] = useState<Settlement[]>([])
   const [viewMode, setViewMode] = useState<"simplified" | "detailed">("simplified")
 
   const doFetch = useCallback(() => {
     setFetchError(null)
     Promise.all([
       fetch(`/api/groups/${groupId}/balances`).then(r => r.json()),
-      fetch(`/api/groups/${groupId}/expenses`).then(r => r.json())
+      fetch(`/api/groups/${groupId}/expenses`).then(r => r.json()),
+      fetch(`/api/groups/${groupId}/settlements`).then(r => r.json())
     ])
-      .then(([balancesData, expensesData]) => {
-        if (balancesData.error || expensesData.error) {
-          setFetchError(balancesData.error ?? expensesData.error ?? "Failed to load data")
+      .then(([balancesData, expensesData, settlementsData]) => {
+        if (balancesData.error || expensesData.error || settlementsData.error) {
+          setFetchError(balancesData.error ?? expensesData.error ?? settlementsData.error ?? "Failed to load data")
           setRawBalances([])
           setExpenses([])
+          setSettlements([])
         } else {
           setRawBalances(Array.isArray(balancesData) ? balancesData : [])
           setExpenses(Array.isArray(expensesData) ? expensesData : [])
+          setSettlements(Array.isArray(settlementsData) ? settlementsData : [])
         }
         setIsLoading(false)
       })
@@ -47,6 +51,7 @@ export function BalanceList({ groupId, refreshKey }: Props) {
         setFetchError("Network error — could not load data")
         setRawBalances([])
         setExpenses([])
+        setSettlements([])
         setIsLoading(false)
       })
   }, [groupId])
@@ -163,6 +168,7 @@ export function BalanceList({ groupId, refreshKey }: Props) {
               balance={balance}
               onSettle={settle}
               expenses={viewMode === "detailed" ? expenses : undefined}
+              settlements={viewMode === "detailed" ? settlements : undefined}
             />
           ))}
         </div>

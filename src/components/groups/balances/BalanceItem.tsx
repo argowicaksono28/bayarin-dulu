@@ -7,7 +7,7 @@ import {
   HoverCardTrigger,
 } from "@/components/ui/hover-card"
 import { formatIDR } from "@/lib/formatters"
-import type { Balance, Expense } from "@/types"
+import type { Balance, Expense, Settlement } from "@/types"
 import { SettlementAlertDialog } from "@/components/settlement/SettlementAlertDialog"
 import { RequestPaymentSheet } from "@/components/request-payment/RequestPaymentSheet"
 import { createClient } from "@/lib/supabase/client"
@@ -30,9 +30,10 @@ interface Props {
   balance: Balance
   onSettle?: (balance: Balance) => void
   expenses?: Expense[]
+  settlements?: Settlement[]
 }
 
-export function BalanceItem({ balance, onSettle, expenses }: Props) {
+export function BalanceItem({ balance, onSettle, expenses, settlements }: Props) {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [expanded, setExpanded] = useState(false)
 
@@ -63,7 +64,25 @@ export function BalanceItem({ balance, onSettle, expenses }: Props) {
         return fromOwesTo || toOwesFrom
       })
     : []
-  const hasExpenses = relatedExpenses.length > 0
+
+  const relatedSettlements = settlements
+    ? settlements.filter((s) => {
+        const fromTo = s.fromUserId === balance.fromUserId && s.toUserId === balance.toUserId
+        const toFrom = s.fromUserId === balance.toUserId && s.toUserId === balance.fromUserId
+        return fromTo || toFrom
+      })
+    : []
+
+  type TimelineItem =
+    | { type: "expense"; data: Expense; date: number; id: string }
+    | { type: "settlement"; data: Settlement; date: number; id: string }
+
+  const timelineItems: TimelineItem[] = [
+    ...relatedExpenses.map(e => ({ type: "expense" as const, data: e, date: new Date(e.createdAt).getTime(), id: e.id })),
+    ...relatedSettlements.map(s => ({ type: "settlement" as const, data: s, date: new Date(s.settledAt).getTime(), id: s.id }))
+  ].sort((a, b) => b.date - a.date)
+
+  const hasItems = timelineItems.length > 0
 
   return (
     <div className="flex flex-col py-4 px-4 hover:bg-muted/10 transition-colors">
@@ -108,7 +127,7 @@ export function BalanceItem({ balance, onSettle, expenses }: Props) {
             <p className="text-sm font-semibold text-destructive">
               {formatIDR(balance.amount)}
             </p>
-            {hasExpenses && (
+            {hasItems && (
               <button onClick={() => setExpanded(!expanded)} className="text-muted-foreground hover:text-foreground p-0.5 rounded-full transition-colors">
                 {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
               </button>
@@ -129,37 +148,62 @@ export function BalanceItem({ balance, onSettle, expenses }: Props) {
         )}
       </div>
 
-      {hasExpenses && expanded && (
+      {hasItems && expanded && (
         <div className="mt-3 pt-3 pb-1 border-t border-border/40 space-y-2">
-          {relatedExpenses.map((expense) => {
-            const isFromOwingTo = expense.paidBy === balance.toUserId
-            const contributingAmount = isFromOwingTo
-              ? expense.splits[balance.fromUserId]
-              : expense.splits[balance.toUserId]
-            
-            // If fromOwesTo, it adds to the balance. If toOwesFrom, it subtracts from the balance.
-            const directionText = isFromOwingTo ? `Added to debt` : `Reduced debt`
-            const amountColor = isFromOwingTo ? "text-destructive" : "text-emerald-500"
-            const sign = isFromOwingTo ? "+" : "-"
+          {timelineItems.map((item) => {
+            if (item.type === "expense") {
+              const expense = item.data
+              const isFromOwingTo = expense.paidBy === balance.toUserId
+              const contributingAmount = isFromOwingTo
+                ? expense.splits[balance.fromUserId]
+                : expense.splits[balance.toUserId]
+              
+              const directionText = isFromOwingTo ? `Added to debt` : `Reduced debt`
+              const amountColor = isFromOwingTo ? "text-destructive" : "text-emerald-500"
+              const sign = isFromOwingTo ? "+" : "-"
 
-             return (
-              <div key={expense.id} className="flex items-center justify-between pl-12 pr-2 text-sm">
-                <div className="flex flex-col min-w-0 pr-3">
-                  <p className="text-xs font-medium text-foreground truncate">{expense.category} {expense.description}</p>
-                  <p className="text-[10px] text-muted-foreground">
-                    {directionText}
-                  </p>
+              return (
+                <div key={`e-${expense.id}`} className="flex items-center justify-between pl-12 pr-2 text-sm">
+                  <div className="flex flex-col min-w-0 pr-3">
+                    <p className="text-xs font-medium text-foreground truncate">{expense.category} {expense.description}</p>
+                    <p className="text-[10px] text-muted-foreground">
+                      {directionText}
+                    </p>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <p className={cn("text-xs font-semibold", amountColor)}>
+                      {sign}{formatIDR(contributingAmount || 0)}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">
+                      {new Date(expense.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
                 </div>
-                <div className="shrink-0 text-right">
-                  <p className={cn("text-xs font-semibold", amountColor)}>
-                    {sign}{formatIDR(contributingAmount || 0)}
-                  </p>
-                  <p className="text-[10px] text-muted-foreground">
-                    {new Date(expense.createdAt).toLocaleDateString()}
-                  </p>
+              )
+            } else {
+              const settlement = item.data
+              const isFromPayingTo = settlement.fromUserId === balance.fromUserId
+              const directionText = isFromPayingTo ? `Payment made` : `Payment received`
+              const amountColor = isFromPayingTo ? "text-emerald-500" : "text-destructive"
+              const sign = isFromPayingTo ? "-" : "+"
+
+              return (
+                <div key={`s-${settlement.id}`} className="flex items-center justify-between pl-12 pr-2 text-sm rounded-md py-1">
+                  <div className="flex flex-col min-w-0 pr-3">
+                    <p className="text-xs font-medium text-foreground truncate">💸 Payment</p>
+                    <p className="text-[10px] text-muted-foreground">{directionText}</p>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <p className={cn("text-xs font-semibold", amountColor)}>
+                      {sign}{formatIDR(settlement.amount)}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">
+                      {new Date(settlement.settledAt).toLocaleDateString()}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            )
+              )
+            }
           })}
         </div>
       )}
