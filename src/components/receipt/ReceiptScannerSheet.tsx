@@ -66,7 +66,7 @@ function computeSplits(
   assignments: Record<string, string[]>,
   members: User[],
   grandTotal: number,
-): Record<string, number> {
+): { exact: Record<string, number>; shares: Record<string, number> } {
   if (members.length === 0 || grandTotal <= 0) return {}
 
   const memberItemTotals: Record<string, number> = {}
@@ -92,7 +92,7 @@ function computeSplits(
     distributed += rounded
   }
   result[ids[ids.length - 1]] = Math.max(0, grandTotal - distributed)
-  return result
+  return { exact: result, shares: memberItemTotals }
 }
 
 // ─── Item row ─────────────────────────────────────────────────────────────────
@@ -260,7 +260,7 @@ export function ReceiptScannerSheet({ open, onOpenChange, receipt, members, onCo
   const taxPercent = itemsSubtotal > 0 ? Math.round((taxAmount / itemsSubtotal) * 100 * 10) / 10 : 0
   const servicePercent = itemsSubtotal > 0 ? Math.round((serviceAmount / itemsSubtotal) * 100 * 10) / 10 : 0
 
-  const memberSplits = useMemo(
+  const { exact: memberExactSplits, shares: memberItemTotals } = useMemo(
     () => computeSplits(items, assignments, members, grandTotal),
     [items, assignments, members, grandTotal],
   )
@@ -271,7 +271,7 @@ export function ReceiptScannerSheet({ open, onOpenChange, receipt, members, onCo
       baseAmount: itemsSubtotal,
       taxPercent: taxPercent,
       serviceChargePercent: servicePercent,
-      splits: memberSplits,
+      splits: memberItemTotals,
       receiptData: {
         restaurantName,
         items: items.map(({ id, name, qty, amount }) => ({ 
@@ -384,7 +384,7 @@ export function ReceiptScannerSheet({ open, onOpenChange, receipt, members, onCo
                   </Avatar>
                   <span className="flex-1 text-sm truncate">{m.name}</span>
                   <span className="text-sm font-semibold tabular-nums">
-                    {formatIDR(memberSplits[m.id] ?? 0)}
+                    {formatIDR(memberExactSplits[m.id] ?? 0)}
                   </span>
                 </div>
               ))}

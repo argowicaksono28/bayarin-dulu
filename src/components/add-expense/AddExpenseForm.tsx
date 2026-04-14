@@ -138,7 +138,7 @@ export function AddExpenseForm({ groupId, onSuccess, initialValues, receiptResul
     form.setValue("amount", receiptResult.baseAmount, { shouldValidate: true, shouldDirty: true })
     setTax(receiptResult.taxPercent)
     setServiceCharge(receiptResult.serviceChargePercent)
-    setSplitType("exact")
+    setSplitType("shares")
     setSplitInputs(receiptResult.splits)
     setIncludedIds(Object.keys(receiptResult.splits))
     setReceiptData(receiptResult.receiptData ?? null)
