@@ -33,11 +33,12 @@ export function GlobalBalanceCard() {
             "text-3xl font-bold tracking-tight",
             isPositive ? "text-primary" : "text-destructive"
           )}>
+            {netBalance > 0 ? "+ " : netBalance < 0 ? "- " : ""}
             {formatIDR(Math.abs(netBalance))}
           </p>
         )}
         <p className="text-sm text-muted-foreground mt-1">
-          {isPositive ? "You are owed overall" : "You owe overall"}
+          {netBalance !== null && netBalance > 0 ? "You lent overall" : netBalance !== null && netBalance < 0 ? "You owe overall" : "Settled"}
         </p>
       </CardContent>
     </Card>

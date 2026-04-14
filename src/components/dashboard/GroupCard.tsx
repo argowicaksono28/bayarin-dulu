@@ -44,10 +44,10 @@ export function GroupCard({ group }: Props) {
                 "text-sm font-semibold",
                 isPositive ? "text-primary" : "text-destructive"
               )}>
-                {isPositive ? "" : "-"}{formatIDR(Math.abs(group.myBalance))}
+                {isPositive ? "+ " : "- "}{formatIDR(Math.abs(group.myBalance))}
               </p>
               <p className="text-xs text-muted-foreground mt-0.5">
-                {isPositive ? "you are owed" : "you owe"}
+                {isPositive ? "you lent" : "you owe"}
               </p>
             </>
           )}
