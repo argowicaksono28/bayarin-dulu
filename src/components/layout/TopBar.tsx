@@ -29,7 +29,7 @@ export function TopBar() {
           </button>
         ) : (
           <div className="flex items-center gap-2">
-            <img src="/logo.svg" alt="Bayarin Dulu" className="h-8 w-8 object-contain" />
+            <img src="/logo.svg" alt="Bayarin Dulu" className="h-10 w-10 object-contain" />
             <span className="font-bold text-sm text-foreground">Bayarin Dulu</span>
           </div>
         )}

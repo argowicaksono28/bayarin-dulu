@@ -56,7 +56,7 @@ export default function AuthPage() {
         <CardContent className="px-6 py-8 space-y-5">
           {/* Logo + Title */}
           <div className="flex flex-col items-center gap-2 text-center">
-            <img src="/logo.svg" alt="Bayarin Dulu" className="h-16 w-16 object-contain" />
+            <img src="/logo.svg" alt="Bayarin Dulu" className="h-20 w-20 object-contain" />
             <h1 className="text-xl font-bold text-foreground">Bayarin Dulu</h1>
             <p className="text-sm text-muted-foreground">Split bills with friends, hassle-free</p>
           </div>
