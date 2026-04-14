@@ -67,7 +67,7 @@ function computeSplits(
   members: User[],
   grandTotal: number,
 ): { exact: Record<string, number>; shares: Record<string, number> } {
-  if (members.length === 0 || grandTotal <= 0) return {}
+  if (members.length === 0 || grandTotal <= 0) return { exact: {}, shares: {} }
 
   const memberItemTotals: Record<string, number> = {}
   members.forEach((m) => { memberItemTotals[m.id] = 0 })
