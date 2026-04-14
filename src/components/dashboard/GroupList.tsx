@@ -7,9 +7,13 @@ import { GroupListSkeleton } from "./GroupListSkeleton"
 import { EmptyGroupState } from "./EmptyGroupState"
 import { createClient } from "@/lib/supabase/client"
 
-export function GroupList() {
-  const [groups, setGroups] = useState<Group[] | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+interface GroupListProps {
+  initialGroups?: Group[] | null
+}
+
+export function GroupList({ initialGroups = null }: GroupListProps) {
+  const [groups, setGroups] = useState<Group[] | null>(initialGroups)
+  const [isLoading, setIsLoading] = useState(initialGroups === null)
   const channelRef = useRef<ReturnType<ReturnType<typeof createClient>["channel"]> | null>(null)
 
   function fetchGroups() {
@@ -23,7 +27,9 @@ export function GroupList() {
   }
 
   useEffect(() => {
-    fetchGroups()
+    if (initialGroups === null) {
+      fetchGroups()
+    }
 
     const supabase = createClient()
 

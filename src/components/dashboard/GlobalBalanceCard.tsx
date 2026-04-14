@@ -6,10 +6,15 @@ import { formatIDR } from "@/lib/formatters"
 import { cn } from "@/lib/utils"
 import { Group } from "@/types"
 
-export function GlobalBalanceCard() {
-  const [netBalance, setNetBalance] = useState<number | null>(null)
+interface GlobalBalanceCardProps {
+  initialNetBalance?: number | null
+}
+
+export function GlobalBalanceCard({ initialNetBalance = null }: GlobalBalanceCardProps) {
+  const [netBalance, setNetBalance] = useState<number | null>(initialNetBalance)
 
   useEffect(() => {
+    if (initialNetBalance !== null) return // Skip fetching if initial balance is provided
     fetch("/api/groups")
       .then((r) => r.json())
       .then((data) => {

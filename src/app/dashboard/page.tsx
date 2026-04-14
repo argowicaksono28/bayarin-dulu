@@ -1,45 +1,37 @@
-"use client"
-
-import { useState } from "react"
-import { Plus } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { createClient } from "@/lib/supabase/server"
+import { redirect } from "next/navigation"
+import { getUserGroupsBase } from "@/lib/queries"
 import { GlobalBalanceCard } from "@/components/dashboard/GlobalBalanceCard"
 import { GroupList } from "@/components/dashboard/GroupList"
 import { Card } from "@/components/ui/card"
-import { CreateGroupSheet } from "@/components/groups/CreateGroupSheet"
+import { CreateGroupButton } from "@/components/dashboard/CreateGroupButton"
 
-export default function DashboardPage() {
-  const [createOpen, setCreateOpen] = useState(false)
+export default async function DashboardPage() {
+  const supabase = createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    redirect("/auth")
+  }
+
+  const groups = await getUserGroupsBase(supabase, user)
+  const netBalance = groups.reduce((sum: number, g: any) => sum + (g.myBalance ?? 0), 0)
 
   return (
     <div className="space-y-6">
-
-
-      {/* Content */}
       <div className="px-4 lg:px-0 space-y-5">
-        <GlobalBalanceCard />
+        <GlobalBalanceCard initialNetBalance={netBalance} />
 
         <div>
           <div className="flex items-center justify-between mb-1">
             <h2 className="font-semibold text-base text-foreground">Your Groups</h2>
-            {/* Desktop only — on mobile the nav + button handles this */}
-            <Button
-              size="sm"
-              variant="outline"
-              className="gap-1.5 h-8 text-xs border-border/60 hover:bg-white/5"
-              onClick={() => setCreateOpen(true)}
-            >
-              <Plus className="h-3.5 w-3.5" />
-              New Group
-            </Button>
+            <CreateGroupButton />
           </div>
           <Card className="border border-border/50 bg-card rounded-xl overflow-hidden">
-            <GroupList />
+            <GroupList initialGroups={groups} />
           </Card>
         </div>
       </div>
-
-      <CreateGroupSheet open={createOpen} onOpenChange={setCreateOpen} />
     </div>
   )
 }
