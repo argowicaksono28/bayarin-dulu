@@ -3,6 +3,7 @@ import "./globals.css"
 import { ThemeProvider } from "@/providers/ThemeProvider"
 import { AppShell } from "@/components/layout/AppShell"
 import { Toaster } from "@/components/ui/sonner"
+import { Analytics } from "@vercel/analytics/next"
 
 export const metadata: Metadata = {
   title: "Bayarin Dulu",
@@ -25,6 +26,7 @@ export default function RootLayout({
           <AppShell>{children}</AppShell>
           <Toaster position="bottom-center" richColors />
         </ThemeProvider>
+        <Analytics />
       </body>
     </html>
   )
