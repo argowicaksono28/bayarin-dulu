@@ -116,10 +116,10 @@ export function PublicViewClient({
 
   const error = errorMsg ?? null
   const group = initialData?.group ?? null
-  const expenses = Array.isArray(initialData?.expenses) ? initialData.expenses : []
-  const members = Array.isArray(initialData?.members) ? initialData.members : []
-  const settlements = Array.isArray(initialData?.settlements) ? initialData.settlements : []
-  const activities = Array.isArray(initialData?.activities) ? initialData.activities : []
+  const expenses: PublicExpense[] = Array.isArray(initialData?.expenses) ? initialData.expenses : []
+  const members: PublicMember[] = Array.isArray(initialData?.members) ? initialData.members : []
+  const settlements: Settlement[] = Array.isArray(initialData?.settlements) ? initialData.settlements : []
+  const activities: Activity[] = Array.isArray(initialData?.activities) ? initialData.activities : []
   
   const nameMap = useMemo(() => {
     return Object.fromEntries(members.map((m: PublicMember) => [m.id, m.name]))
