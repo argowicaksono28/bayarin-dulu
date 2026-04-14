@@ -13,13 +13,7 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      {/* Desktop header row */}
-      <div className="hidden lg:flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <img src="/logo.svg" alt="Bayarin Dulu" className="h-12 w-12 object-contain" />
-          <span className="font-bold text-lg">Bayarin Dulu</span>
-        </div>
-      </div>
+
 
       {/* Content */}
       <div className="px-4 lg:px-0 space-y-5">

@@ -45,9 +45,9 @@ export function Sidebar() {
       />
 
       {/* Logo */}
-      <div className="flex items-center gap-3 px-5 py-5">
+      <div className="flex flex-col items-center gap-2 px-5 py-6">
         <img src="/logo.svg" alt="Bayarin Dulu" className="h-12 w-12 object-contain shrink-0" />
-        <span className="font-bold text-base text-foreground">Bayarin Dulu</span>
+        <span className="font-bold text-sm text-foreground whitespace-nowrap">Bayarin Dulu</span>
       </div>
 
       {/* Nav */}
