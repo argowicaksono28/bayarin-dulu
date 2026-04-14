@@ -1,7 +1,8 @@
 "use client"
 
 import { useState, useEffect, useRef, useCallback } from "react"
-import { Balance } from "@/types"
+import { Balance, Expense } from "@/types"
+import { cn } from "@/lib/utils"
 import { useSettlement } from "@/hooks/useSettlement"
 import { simplifyDebts } from "@/lib/split-utils"
 import { BalanceItem } from "./BalanceItem"
@@ -22,22 +23,29 @@ export function BalanceList({ groupId, refreshKey }: Props) {
   const { balances, settle } = useSettlement(rawBalances)
   const channelRef = useRef<ReturnType<ReturnType<typeof createClient>["channel"]> | null>(null)
 
+  const [expenses, setExpenses] = useState<Expense[]>([])
+
   const doFetch = useCallback(() => {
     setFetchError(null)
-    fetch(`/api/groups/${groupId}/balances`)
-      .then(async (r) => {
-        const data = await r.json()
-        if (!r.ok) {
-          setFetchError(data.error ?? "Failed to load balances")
+    Promise.all([
+      fetch(`/api/groups/${groupId}/balances`).then(r => r.json()),
+      fetch(`/api/groups/${groupId}/expenses`).then(r => r.json())
+    ])
+      .then(([balancesData, expensesData]) => {
+        if (balancesData.error || expensesData.error) {
+          setFetchError(balancesData.error ?? expensesData.error ?? "Failed to load data")
           setRawBalances([])
+          setExpenses([])
         } else {
-          setRawBalances(Array.isArray(data) ? data : [])
+          setRawBalances(Array.isArray(balancesData) ? balancesData : [])
+          setExpenses(Array.isArray(expensesData) ? expensesData : [])
         }
         setIsLoading(false)
       })
       .catch(() => {
-        setFetchError("Network error — could not load balances")
+        setFetchError("Network error — could not load data")
         setRawBalances([])
+        setExpenses([])
         setIsLoading(false)
       })
   }, [groupId])
@@ -91,6 +99,8 @@ export function BalanceList({ groupId, refreshKey }: Props) {
     )
   }
 
+  const [viewMode, setViewMode] = useState<"simplified" | "detailed">("simplified")
+
   // Re-attach profiles lost during simplification
   const profileLookup: Record<string, Balance["fromProfile"]> = {}
   for (const b of balances) {
@@ -98,11 +108,19 @@ export function BalanceList({ groupId, refreshKey }: Props) {
     if (b.toProfile)   profileLookup[b.toUserId]   = b.toProfile
   }
 
-  const displayed = simplifyDebts(balances).map((b) => ({
+  const simplifiedDisplayed = simplifyDebts(balances).map((b) => ({
     ...b,
     fromProfile: profileLookup[b.fromUserId] ?? null,
     toProfile:   profileLookup[b.toUserId]   ?? null,
   }))
+
+  const detailedDisplayed = balances.map((b) => ({
+    ...b,
+    fromProfile: profileLookup[b.fromUserId] ?? null,
+    toProfile:   profileLookup[b.toUserId]   ?? null,
+  }))
+
+  const displayed = viewMode === "simplified" ? simplifiedDisplayed : detailedDisplayed
 
   if (displayed.length === 0) {
     return (
@@ -118,7 +136,21 @@ export function BalanceList({ groupId, refreshKey }: Props) {
 
   return (
     <div className="px-4 space-y-3">
-      <div className="flex justify-end">
+      <div className="flex items-center justify-between">
+        <div className="flex bg-muted/50 p-1 rounded-lg">
+          <button
+            onClick={() => setViewMode("simplified")}
+            className={cn("px-3 py-1.5 text-xs font-medium rounded-md transition-colors", viewMode === "simplified" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground")}
+          >
+            Simplified
+          </button>
+          <button
+            onClick={() => setViewMode("detailed")}
+            className={cn("px-3 py-1.5 text-xs font-medium rounded-md transition-colors", viewMode === "detailed" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground")}
+          >
+            Detailed
+          </button>
+        </div>
         <span className="text-xs text-muted-foreground">
           {displayed.length} transaction{displayed.length !== 1 ? "s" : ""}
         </span>
@@ -131,6 +163,7 @@ export function BalanceList({ groupId, refreshKey }: Props) {
               key={balance.id}
               balance={balance}
               onSettle={settle}
+              expenses={viewMode === "detailed" ? expenses : undefined}
             />
           ))}
         </div>
