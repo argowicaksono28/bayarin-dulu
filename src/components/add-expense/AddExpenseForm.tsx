@@ -141,6 +141,8 @@ export function AddExpenseForm({ groupId, onSuccess, initialValues, receiptResul
     setSplitInputs(receiptResult.splits)
     setIncludedIds(Object.keys(receiptResult.splits))
     setReceiptData(receiptResult.receiptData ?? null)
+    // Validate all fields so isValid becomes true and the submit button unlocks
+    form.trigger()
   }, [receiptResult, form])
 
   function toggleMember(id: string) {

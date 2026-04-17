@@ -21,6 +21,7 @@ import { ReceiptScannerSheet, type ScannedReceipt, type ReceiptConfirmResult } f
 import { useMediaQuery } from "@/hooks/useMediaQuery"
 import { cn } from "@/lib/utils"
 import { ScanLine, Upload, Loader2 } from "lucide-react"
+import type { ReceiptData } from "@/types"
 
 const AVATAR_COLORS = [
   "bg-emerald-600", "bg-blue-600", "bg-amber-700",
@@ -127,6 +128,7 @@ export function DemoAddExpenseDialog({ groupId, open, onOpenChange }: Props) {
   const [scannedReceipt, setScannedReceipt] = useState<ScannedReceipt | null>(null)
   const [receiptSheetOpen, setReceiptSheetOpen] = useState(false)
   const [receiptResult, setReceiptResult] = useState<ReceiptConfirmResult | null>(null)
+  const [receiptData, setReceiptData] = useState<ReceiptData | null>(null)
 
   // Reset on open
   useEffect(() => {
@@ -141,6 +143,7 @@ export function DemoAddExpenseDialog({ groupId, open, onOpenChange }: Props) {
       setActiveTab("manual")
       setReceiptResult(null)
       setScannedReceipt(null)
+      setReceiptData(null)
     }
   }, [open, members.length])
 
@@ -152,6 +155,7 @@ export function DemoAddExpenseDialog({ groupId, open, onOpenChange }: Props) {
     setSplitType("exact")
     setSplitInputs(receiptResult.splits)
     setIncludedIds(Object.keys(receiptResult.splits))
+    setReceiptData(receiptResult.receiptData ?? null)
     setActiveTab("manual")
   }, [receiptResult])
 
@@ -211,6 +215,7 @@ export function DemoAddExpenseDialog({ groupId, open, onOpenChange }: Props) {
       splitType,
       splits: splitResult.splits,
       category,
+      receiptData: receiptData ?? undefined,
       createdAt: new Date(),
       createdBy: DEMO_CURRENT_USER_ID,
     }
@@ -386,13 +391,13 @@ export function DemoAddExpenseDialog({ groupId, open, onOpenChange }: Props) {
     <>
       {isDesktop ? (
         <Dialog open={open} onOpenChange={handleClose}>
-          <DialogContent className="max-w-lg bg-card border-border/50 p-0 flex flex-col" style={{ maxHeight: "90vh" }}>
+          <DialogContent className="max-w-lg bg-card border-border/50 p-0 flex flex-col" style={{ maxHeight: "90vh", height: "90vh" }}>
             <DialogHeader className="px-6 pt-5 pb-3 shrink-0 border-b border-border/30">
               <DialogTitle>Add Expense</DialogTitle>
             </DialogHeader>
-            <ScrollArea className="flex-1">
-              <div className="px-6 py-4">{tabs}</div>
-            </ScrollArea>
+            <div className="flex-1 min-h-0 overflow-y-auto">
+              <div className="px-6 py-4 pb-8">{tabs}</div>
+            </div>
           </DialogContent>
         </Dialog>
       ) : (

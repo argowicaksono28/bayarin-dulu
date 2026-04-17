@@ -14,7 +14,8 @@ import { Separator } from "@/components/ui/separator"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
 import { formatIDR } from "@/lib/formatters"
-import { Store, Check, Pencil, X, ChevronDown } from "lucide-react"
+import { Store, Check, Pencil, X, ChevronDown, AlertCircle } from "lucide-react"
+import { toast } from "sonner"
 import type { User } from "@/types"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -73,7 +74,7 @@ function computeSplits(
   members.forEach((m) => { memberItemTotals[m.id] = 0 })
 
   for (const item of items) {
-    const assigned = assignments[item.id] ?? members.map((m) => m.id)
+    const assigned = assignments[item.id] ?? []
     const active = assigned.filter((id) => id in memberItemTotals)
     if (active.length === 0) continue
     const share = item.amount / active.length
@@ -138,6 +139,7 @@ function ItemRow({
   const assigned = getAssigned()
   const assignedMembers = members.filter((m) => assigned.includes(m.id))
   const allAssigned = assigned.length === members.length
+  const noneAssigned = assigned.length === 0
 
   return (
     <div className="py-3 border-b border-border/30 last:border-0">
@@ -188,9 +190,19 @@ function ItemRow({
           <button
             type="button"
             onClick={() => setPickerOpen(true)}
-            className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 min-w-[60px] justify-center rounded-full border border-border/50 hover:border-primary/50 hover:bg-primary/5 transition-colors"
+            className={cn(
+              "shrink-0 flex items-center gap-1.5 px-3 py-1.5 min-w-[60px] justify-center rounded-full border transition-colors",
+              noneAssigned
+                ? "border-border/60 bg-muted/40 hover:bg-muted/60"
+                : "border-border/50 hover:border-primary/50 hover:bg-primary/5",
+            )}
           >
-            {allAssigned ? (
+            {noneAssigned ? (
+              <>
+                <AlertCircle className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                <span className="text-xs text-muted-foreground font-medium">Who had this?</span>
+              </>
+            ) : allAssigned ? (
               <span className="text-xs text-primary font-medium">All</span>
             ) : (
               <>
@@ -224,8 +236,8 @@ function ItemRow({
                 Select All
               </Button>
               <Button
-                variant="outline" size="sm" className="h-7 text-xs"
-                onClick={() => [...assigned].forEach((id) => onToggleMember(id))}
+                variant="outline" size="sm" className="h-7 text-xs text-destructive hover:text-destructive"
+                onClick={() => assigned.slice().forEach((id) => onToggleMember(id))}
               >
                 Clear
               </Button>
@@ -287,13 +299,13 @@ export function ReceiptScannerSheet({ open, onOpenChange, receipt, members, onCo
 
   const toggleMember = useCallback((itemId: string, memberId: string) => {
     setAssignments((prev) => {
-      const current = prev[itemId] ?? members.map((m) => m.id)
+      const current = prev[itemId] ?? []
       const next = current.includes(memberId)
         ? current.filter((id) => id !== memberId)
         : [...current, memberId]
-      return { ...prev, [itemId]: next.length > 0 ? next : members.map((m) => m.id) }
+      return { ...prev, [itemId]: next }
     })
-  }, [members])
+  }, [])
 
   const updateItem = useCallback((id: string, updates: Partial<Pick<ScannedItem, "name" | "amount">>) => {
     setItems((prev) => prev.map((item) => item.id === id ? { ...item, ...updates } : item))
@@ -313,6 +325,18 @@ export function ReceiptScannerSheet({ open, onOpenChange, receipt, members, onCo
   )
 
   function handleConfirm() {
+    const unassignedItems = items.filter((item) => {
+      const assigned = assignments[item.id] ?? []
+      return assigned.length === 0
+    })
+    if (unassignedItems.length > 0) {
+      const names = unassignedItems.map((i) => `"${i.name}"`).join(", ")
+      toast.error(`${unassignedItems.length} item${unassignedItems.length > 1 ? "s" : ""} not assigned`, {
+        description: `Please assign at least one person to: ${names}`,
+        duration: 4000,
+      })
+      return
+    }
     onConfirm({
       description: restaurantName || "Restaurant",
       baseAmount: itemsSubtotal,
@@ -321,11 +345,11 @@ export function ReceiptScannerSheet({ open, onOpenChange, receipt, members, onCo
       splits: memberItemTotals,
       receiptData: {
         restaurantName,
-        items: items.map(({ id, name, qty, amount }) => ({ 
-          name, 
-          qty, 
+        items: items.map(({ id, name, qty, amount }) => ({
+          name,
+          qty,
           amount,
-          assignments: assignments[id] ?? members.map(m => m.id)
+          assignments: assignments[id] ?? []
         })),
         subtotal: itemsSubtotal,
       },
@@ -360,7 +384,7 @@ export function ReceiptScannerSheet({ open, onOpenChange, receipt, members, onCo
                 key={item.id}
                 item={item}
                 members={members}
-                getAssigned={() => assignments[item.id] ?? members.map((m) => m.id)}
+                getAssigned={() => assignments[item.id] ?? []}
                 onToggleMember={(mid) => toggleMember(item.id, mid)}
                 onUpdate={(updates) => updateItem(item.id, updates)}
               />
