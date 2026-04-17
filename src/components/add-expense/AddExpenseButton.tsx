@@ -102,13 +102,13 @@ export function AddExpenseButton({ groupId, open, onOpenChange }: Props) {
         <Sheet open={open} onOpenChange={handleClose}>
           <SheetContent
             side="bottom"
-            className="rounded-t-2xl h-[92vh] bg-card border-border/50 p-0 flex flex-col"
+            className="rounded-t-2xl h-[92vh] bg-card border-border/50 p-0 flex flex-col overflow-x-hidden"
           >
-            <SheetHeader className="px-4 pt-4 pb-2 shrink-0">
+            <SheetHeader className="pl-4 pr-10 pt-4 pb-2 shrink-0">
               <SheetTitle>Add Expense</SheetTitle>
             </SheetHeader>
             <ScrollArea className="flex-1">
-              <div className="px-5 pt-2 pb-10">
+              <div className="pl-5 pr-5 pt-2 pb-10">
                 {tabs}
               </div>
             </ScrollArea>

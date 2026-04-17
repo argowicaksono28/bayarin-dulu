@@ -257,11 +257,11 @@ export function AddExpenseForm({ groupId, onSuccess, initialValues, receiptResul
 
         {/* Calculator Sheet */}
         <Sheet open={showCalc} onOpenChange={setShowCalc}>
-          <SheetContent side="bottom" className="rounded-t-2xl bg-card border-border/50 p-0 flex flex-col">
-            <SheetHeader className="px-4 pt-4 pb-3 shrink-0">
+          <SheetContent side="bottom" className="rounded-t-2xl bg-card border-border/50 p-0 flex flex-col overflow-x-hidden">
+            <SheetHeader className="pl-4 pr-10 pt-4 pb-3 shrink-0">
               <SheetTitle>Calculator</SheetTitle>
             </SheetHeader>
-            <div className="px-4 pb-8">
+            <div className="pl-4 pr-4 pb-8">
               <CalculatorKeyboard
                 initialValue={form.getValues("amount")}
                 onConfirm={(val) => {

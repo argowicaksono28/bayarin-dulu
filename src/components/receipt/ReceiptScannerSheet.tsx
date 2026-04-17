@@ -340,19 +340,19 @@ export function ReceiptScannerSheet({ open, onOpenChange, receipt, members, onCo
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="bottom"
-        className="rounded-t-2xl bg-card border-border/50 h-[92vh] p-0 flex flex-col"
+        className="rounded-t-2xl bg-card border-border/50 h-[92vh] p-0 flex flex-col overflow-x-hidden"
       >
-        <SheetHeader className="px-4 pt-4 pb-1 shrink-0">
+        <SheetHeader className="pl-4 pr-10 pt-4 pb-1 shrink-0">
           <SheetTitle className="flex items-center gap-2 text-base">
             <Store className="h-4 w-4 text-muted-foreground shrink-0" />
             <span className="truncate">{restaurantName || "Receipt Split"}</span>
           </SheetTitle>
           <p className="text-xs text-muted-foreground">
-            ✏️ Tap item to edit · 👤 Tap avatar to assign · Edit tax/service below
+            ✏️ Tap item to edit · Tap pill to assign members
           </p>
         </SheetHeader>
 
-        <ScrollArea className="flex-1 px-4">
+        <ScrollArea className="flex-1 pl-4 pr-4">
           {/* Items */}
           <div className="pb-1">
             {items.map((item) => (
