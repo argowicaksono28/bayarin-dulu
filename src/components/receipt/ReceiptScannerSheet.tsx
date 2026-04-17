@@ -193,14 +193,14 @@ function ItemRow({
             className={cn(
               "shrink-0 flex items-center gap-1.5 px-3 py-1.5 min-w-[60px] justify-center rounded-full border transition-colors",
               noneAssigned
-                ? "border-destructive/60 bg-destructive/5 hover:bg-destructive/10"
+                ? "border-border/60 bg-muted/40 hover:bg-muted/60"
                 : "border-border/50 hover:border-primary/50 hover:bg-primary/5",
             )}
           >
             {noneAssigned ? (
               <>
-                <AlertCircle className="h-3.5 w-3.5 text-destructive shrink-0" />
-                <span className="text-xs text-destructive font-medium">Who had this?</span>
+                <AlertCircle className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                <span className="text-xs text-muted-foreground font-medium">Who had this?</span>
               </>
             ) : allAssigned ? (
               <span className="text-xs text-primary font-medium">All</span>
