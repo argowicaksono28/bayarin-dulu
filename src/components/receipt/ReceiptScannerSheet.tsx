@@ -14,7 +14,7 @@ import { Separator } from "@/components/ui/separator"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
 import { formatIDR } from "@/lib/formatters"
-import { Store, Check, Pencil, X } from "lucide-react"
+import { Store, Check, Pencil, X, ChevronDown } from "lucide-react"
 import type { User } from "@/types"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -134,7 +134,10 @@ function ItemRow({
     setEditing(false)
   }
 
+  const [pickerOpen, setPickerOpen] = useState(false)
   const assigned = getAssigned()
+  const assignedMembers = members.filter((m) => assigned.includes(m.id))
+  const allAssigned = assigned.length === members.length
 
   return (
     <div className="py-3 border-b border-border/30 last:border-0">
@@ -181,8 +184,54 @@ function ItemRow({
             </div>
           </button>
 
-          {/* Member assignment chips */}
-          <div className="flex gap-1 flex-wrap justify-end shrink-0">
+          {/* Assignment pill — tap to open member picker */}
+          <button
+            type="button"
+            onClick={() => setPickerOpen(true)}
+            className="shrink-0 flex items-center gap-1.5 px-2 py-1 rounded-full border border-border/50 hover:border-primary/50 hover:bg-primary/5 transition-colors"
+          >
+            {allAssigned ? (
+              <span className="text-xs text-primary font-medium px-0.5">All</span>
+            ) : (
+              <>
+                <div className="flex -space-x-1.5">
+                  {assignedMembers.slice(0, 3).map((m) => (
+                    <Avatar key={m.id} className="h-5 w-5 border border-card">
+                      <AvatarFallback className="text-[8px] bg-muted">{m.initials}</AvatarFallback>
+                    </Avatar>
+                  ))}
+                </div>
+                <span className="text-xs text-muted-foreground">
+                  {assigned.length > 3 ? `+${assigned.length - 3}` : `${assigned.length} of ${members.length}`}
+                </span>
+              </>
+            )}
+            <ChevronDown className="h-3 w-3 text-muted-foreground" />
+          </button>
+        </div>
+      )}
+
+      {/* Per-item member picker sheet */}
+      <Sheet open={pickerOpen} onOpenChange={setPickerOpen}>
+        <SheetContent side="bottom" className="rounded-t-2xl bg-card border-border/50 p-0 flex flex-col max-h-[70vh]">
+          <SheetHeader className="px-4 pt-4 pb-2 shrink-0">
+            <SheetTitle className="text-sm font-semibold">Who had "{item.name}"?</SheetTitle>
+            <div className="flex gap-2 mt-1">
+              <Button
+                variant="outline" size="sm" className="h-7 text-xs"
+                onClick={() => members.forEach((m) => { if (!assigned.includes(m.id)) onToggleMember(m.id) })}
+              >
+                Select All
+              </Button>
+              <Button
+                variant="outline" size="sm" className="h-7 text-xs"
+                onClick={() => [...assigned].forEach((id) => onToggleMember(id))}
+              >
+                Clear
+              </Button>
+            </div>
+          </SheetHeader>
+          <ScrollArea className="flex-1 px-4 pb-6">
             {members.map((m) => {
               const isOn = assigned.includes(m.id)
               return (
@@ -190,26 +239,24 @@ function ItemRow({
                   key={m.id}
                   type="button"
                   onClick={() => onToggleMember(m.id)}
-                  title={m.name}
-                  className={cn(
-                    "relative h-8 w-8 rounded-full border-2 transition-all flex items-center justify-center",
-                    isOn ? "border-primary ring-2 ring-primary/30" : "border-border/50 opacity-30",
-                  )}
+                  className="w-full flex items-center gap-3 px-2 py-2.5 rounded-lg hover:bg-muted/50 transition-colors"
                 >
-                  <Avatar className="h-7 w-7">
-                    <AvatarFallback className="text-[9px] bg-muted">{m.initials}</AvatarFallback>
+                  <Avatar className="h-8 w-8 shrink-0">
+                    <AvatarFallback className="text-xs bg-muted">{m.initials}</AvatarFallback>
                   </Avatar>
-                  {isOn && (
-                    <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-primary flex items-center justify-center">
-                      <Check className="h-2 w-2 text-primary-foreground" />
-                    </span>
-                  )}
+                  <span className="flex-1 text-sm text-left">{m.name}</span>
+                  <div className={cn(
+                    "h-5 w-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors",
+                    isOn ? "bg-primary border-primary" : "border-border/50"
+                  )}>
+                    {isOn && <Check className="h-3 w-3 text-primary-foreground" />}
+                  </div>
                 </button>
               )
             })}
-          </div>
-        </div>
-      )}
+          </ScrollArea>
+        </SheetContent>
+      </Sheet>
     </div>
   )
 }
