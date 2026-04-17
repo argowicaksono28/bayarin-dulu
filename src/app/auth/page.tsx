@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Link from "next/link"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -10,6 +11,7 @@ import { SignUpForm } from "@/components/auth/SignUpForm"
 import { MagicLinkForm } from "@/components/auth/MagicLinkForm"
 import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
+import { PlayCircle } from "lucide-react"
 
 function GoogleButton() {
   const [loading, setLoading] = useState(false)
@@ -63,6 +65,18 @@ export default function AuthPage() {
 
           {/* Google */}
           <GoogleButton />
+
+          {/* Try Demo CTA */}
+          <Button
+            variant="outline"
+            className="w-full gap-2 h-10 text-sm font-medium border-primary/40 text-primary hover:bg-primary/10 hover:border-primary/70 hover:text-primary"
+            asChild
+          >
+            <Link href="/demo">
+              <PlayCircle className="h-4 w-4" />
+              Try Demo — no account needed
+            </Link>
+          </Button>
 
           {/* Divider */}
           <div className="relative">
