@@ -200,7 +200,7 @@ function ItemRow({
             {noneAssigned ? (
               <>
                 <AlertCircle className="h-3.5 w-3.5 text-destructive shrink-0" />
-                <span className="text-xs text-destructive font-medium">None</span>
+                <span className="text-xs text-destructive font-medium">Who had this?</span>
               </>
             ) : allAssigned ? (
               <span className="text-xs text-primary font-medium">All</span>
