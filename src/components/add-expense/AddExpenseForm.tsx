@@ -84,7 +84,6 @@ export function AddExpenseForm({ groupId, onSuccess, initialValues, receiptResul
   const [tax, setTax] = useState(initialValues?.tax ?? 0)
   const [serviceCharge, setServiceCharge] = useState(initialValues?.serviceCharge ?? 0)
   const [showCalc, setShowCalc] = useState(false)
-  const [showSuggestions, setShowSuggestions] = useState(false)
   const [receiptData, setReceiptData] = useState<ReceiptData | null>(null)
 
   useEffect(() => {
@@ -282,27 +281,28 @@ export function AddExpenseForm({ groupId, onSuccess, initialValues, receiptResul
             <FormItem>
               <FormLabel>Description</FormLabel>
               <FormControl>
-                <div className="relative">
+                <div>
                   <Input
-                    placeholder="Lunch, gas, groceries..."
+                    placeholder="What was this for?"
                     {...field}
-                    onFocus={() => setShowSuggestions(true)}
-                    onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
                   />
-                  {showSuggestions && field.value === "" && (
-                    <div className="absolute top-full left-0 right-0 z-10 mt-1 border border-border/50 rounded-lg bg-card shadow-xl overflow-hidden">
-                      {EXPENSE_SUGGESTIONS.slice(0, 4).map((s) => (
-                        <button
-                          key={s}
-                          type="button"
-                          className="w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors"
-                          onClick={() => { field.onChange(s); setShowSuggestions(false) }}
-                        >
-                          {s}
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {EXPENSE_SUGGESTIONS.slice(0, 4).map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => field.onChange(s)}
+                        className={cn(
+                          "text-xs px-2.5 py-1 rounded-full border transition-colors",
+                          field.value === s
+                            ? "border-primary bg-primary/10 text-primary"
+                            : "border-border/50 hover:bg-muted text-muted-foreground"
+                        )}
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </FormControl>
               <FormMessage />
