@@ -10,6 +10,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname()
   const isAuthPage = pathname === "/auth"
   const isPublicPage = pathname.startsWith("/view/")
+  const isDemoPage = pathname === "/demo" || pathname.startsWith("/demo/")
+
+  // Demo pages manage their own shell (DemoShell inside demo/layout.tsx)
+  if (isDemoPage) return <>{children}</>
 
   if (isPublicPage) {
     return (

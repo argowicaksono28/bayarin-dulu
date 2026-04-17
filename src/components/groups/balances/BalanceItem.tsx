@@ -31,17 +31,23 @@ interface Props {
   onSettle?: (balance: Balance) => void
   expenses?: Expense[]
   settlements?: Settlement[]
+  /** Optional override — when provided, skips the Supabase auth call (used in demo mode) */
+  currentUserId?: string
 }
 
-export function BalanceItem({ balance, onSettle, expenses, settlements }: Props) {
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+export function BalanceItem({ balance, onSettle, expenses, settlements, currentUserId: currentUserIdProp }: Props) {
+  const [currentUserId, setCurrentUserId] = useState<string | null>(currentUserIdProp ?? null)
   const [expanded, setExpanded] = useState(false)
 
   useEffect(() => {
+    if (currentUserIdProp) {
+      setCurrentUserId(currentUserIdProp)
+      return
+    }
     createClient().auth.getUser().then(({ data }) => {
       if (data.user) setCurrentUserId(data.user.id)
     })
-  }, [])
+  }, [currentUserIdProp])
 
   const fromProfile = balance.fromProfile
   const toProfile = balance.toProfile

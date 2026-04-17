@@ -2,6 +2,19 @@ import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
 
 export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl
+
+  // Short-circuit for public routes — skip Supabase entirely
+  if (
+    pathname === "/auth/callback" ||
+    pathname.startsWith("/view/") ||
+    pathname.startsWith("/api/public/") ||
+    pathname === "/demo" ||
+    pathname.startsWith("/demo/")
+  ) {
+    return NextResponse.next({ request })
+  }
+
   let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(
@@ -26,18 +39,6 @@ export async function middleware(request: NextRequest) {
   )
 
   const { data: { user } } = await supabase.auth.getUser()
-
-  const { pathname } = request.nextUrl
-
-  // Allow the OAuth callback route through without auth check
-  if (pathname === "/auth/callback") {
-    return supabaseResponse
-  }
-
-  // Allow public view pages and public API routes without auth
-  if (pathname.startsWith("/view/") || pathname.startsWith("/api/public/")) {
-    return supabaseResponse
-  }
 
   // Redirect unauthenticated users to /auth
   if (!user && pathname !== "/auth") {
