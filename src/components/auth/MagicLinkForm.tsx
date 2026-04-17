@@ -72,7 +72,7 @@ export function MagicLinkForm() {
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <div className="rounded-lg bg-muted/50 border border-border/50 p-3 text-sm text-muted-foreground">
-          We&apos;ll send a sign-in link to your email — no password needed.
+          We&apos;ll send a sign-in link to your email. No password needed.
         </div>
         <FormField control={form.control} name="email" render={({ field }) => (
           <FormItem>

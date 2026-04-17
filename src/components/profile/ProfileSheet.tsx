@@ -79,15 +79,13 @@ export function ProfileSheet({ open, onOpenChange }: Props) {
     router.refresh()
   }
 
-  const displayName = profile?.name ?? "..."
-  const displayEmail = profile?.email ?? ""
-  const displayPhone = profile?.phone ?? "—"
-  const initials = profile?.initials ?? displayName.slice(0, 2).toUpperCase()
+  const isLoading = !profile
+  const initials = profile?.initials ?? ""
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="rounded-t-2xl bg-card border-border/50 p-0 flex flex-col">
-        <SheetHeader className="px-4 pt-4 pb-2 shrink-0">
+      <SheetContent side="bottom" className="rounded-t-2xl bg-card border-border/50 p-0 flex flex-col overflow-x-hidden">
+        <SheetHeader className="pl-4 pr-10 pt-4 pb-2 shrink-0">
           <SheetTitle>Profile</SheetTitle>
         </SheetHeader>
 
@@ -95,18 +93,32 @@ export function ProfileSheet({ open, onOpenChange }: Props) {
           {/* Avatar + name */}
           <div className="flex items-center gap-4 py-2">
             <Avatar className="h-16 w-16">
-              <AvatarFallback className="text-xl font-bold bg-primary text-primary-foreground">
-                {initials}
-              </AvatarFallback>
+              {isLoading ? (
+                <AvatarFallback className="bg-muted animate-pulse" />
+              ) : (
+                <AvatarFallback className="text-xl font-bold bg-primary text-primary-foreground">
+                  {initials}
+                </AvatarFallback>
+              )}
             </Avatar>
-            <div className="flex-1 min-w-0">
-              <p className="font-semibold text-base">{displayName}</p>
-              <p className="text-sm text-muted-foreground">{displayEmail}</p>
+            <div className="flex-1 min-w-0 space-y-1.5">
+              {isLoading ? (
+                <>
+                  <div className="h-4 w-32 rounded bg-muted animate-pulse" />
+                  <div className="h-3 w-44 rounded bg-muted animate-pulse" />
+                </>
+              ) : (
+                <>
+                  <p className="font-semibold text-base">{profile.name}</p>
+                  <p className="text-sm text-muted-foreground">{profile.email}</p>
+                </>
+              )}
             </div>
             <Button
               variant="ghost"
               size="icon"
               className="h-9 w-9 text-muted-foreground hover:text-foreground"
+              disabled={isLoading}
               onClick={() => setEditing(!editing)}
             >
               <Edit2 className="h-4 w-4" />
@@ -162,11 +174,21 @@ export function ProfileSheet({ open, onOpenChange }: Props) {
             <div className="space-y-1">
               <div className="flex items-center gap-3 px-1 py-2.5 rounded-xl">
                 <Mail className="h-4 w-4 text-muted-foreground shrink-0" />
-                <span className="text-sm text-muted-foreground">{displayEmail}</span>
+                {isLoading ? (
+                  <div className="h-3 w-48 rounded bg-muted animate-pulse" />
+                ) : (
+                  <span className="text-sm text-muted-foreground">{profile.email}</span>
+                )}
               </div>
               <div className="flex items-center gap-3 px-1 py-2.5 rounded-xl">
                 <Phone className="h-4 w-4 text-muted-foreground shrink-0" />
-                <span className="text-sm text-muted-foreground">{displayPhone}</span>
+                {isLoading ? (
+                  <div className="h-3 w-32 rounded bg-muted animate-pulse" />
+                ) : (
+                  <span className="text-sm text-muted-foreground">
+                    {profile.phone ?? "Not added"}
+                  </span>
+                )}
               </div>
             </div>
           )}

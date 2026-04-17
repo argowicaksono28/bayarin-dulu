@@ -63,7 +63,7 @@ export function ExpenseList({ groupId, onAddExpense, onExpenseChanged }: Props) 
     }
 
     const channel = supabase
-      .channel(`expenses:group:${groupId}:${Date.now()}`)
+      .channel(`expenses:group:${groupId}:${crypto.randomUUID()}`)
       .on(
         "postgres_changes" as any,
         {

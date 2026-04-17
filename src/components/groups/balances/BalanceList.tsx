@@ -67,7 +67,7 @@ export function BalanceList({ groupId, refreshKey }: Props) {
       channelRef.current = null
     }
     const channel = supabase
-      .channel(`balances-settlements:${groupId}:${Date.now()}`)
+      .channel(`balances-settlements:${groupId}:${crypto.randomUUID()}`)
       .on(
         "postgres_changes" as any,
         { event: "*", schema: "public", table: "settlements", filter: `group_id=eq.${groupId}` },

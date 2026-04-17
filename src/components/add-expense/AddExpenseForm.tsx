@@ -485,9 +485,9 @@ export function AddExpenseForm({ groupId, onSuccess, initialValues, receiptResul
               Saving…
             </span>
           ) : isEdit
-            ? `Save Changes — ${formatIDR(totalAmount)}`
+            ? `Save Changes · ${formatIDR(totalAmount)}`
             : watchedAmount > 0
-              ? `Save — ${formatIDR(totalAmount)}`
+              ? `Save · ${formatIDR(totalAmount)}`
               : "Save Expense"}
         </Button>
 

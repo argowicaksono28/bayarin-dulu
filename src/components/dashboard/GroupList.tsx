@@ -40,7 +40,7 @@ export function GroupList({ initialGroups = null }: GroupListProps) {
 
     // Re-fetch groups when expenses or settlements change (balance updates)
     const channel = supabase
-      .channel(`dashboard:realtime:${Date.now()}`)
+      .channel(`dashboard:realtime:${crypto.randomUUID()}`)
       .on(
         "postgres_changes" as any,
         { event: "*", schema: "public", table: "expenses" },
@@ -56,11 +56,7 @@ export function GroupList({ initialGroups = null }: GroupListProps) {
         { event: "*", schema: "public", table: "groups" },
         () => { fetchGroups() }
       )
-      .subscribe((status: string) => {
-        if (status === "CHANNEL_ERROR") {
-          console.warn("[realtime] dashboard channel error")
-        }
-      })
+      .subscribe()
 
     channelRef.current = channel
 

@@ -188,10 +188,10 @@ function ItemRow({
           <button
             type="button"
             onClick={() => setPickerOpen(true)}
-            className="shrink-0 flex items-center gap-1.5 px-2 py-1 rounded-full border border-border/50 hover:border-primary/50 hover:bg-primary/5 transition-colors"
+            className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 min-w-[60px] justify-center rounded-full border border-border/50 hover:border-primary/50 hover:bg-primary/5 transition-colors"
           >
             {allAssigned ? (
-              <span className="text-xs text-primary font-medium px-0.5">All</span>
+              <span className="text-xs text-primary font-medium">All</span>
             ) : (
               <>
                 <div className="flex -space-x-1.5">
@@ -443,7 +443,7 @@ export function ReceiptScannerSheet({ open, onOpenChange, receipt, members, onCo
         <Separator className="shrink-0" />
         <div className="px-4 py-3 shrink-0">
           <Button className="w-full font-semibold" onClick={handleConfirm}>
-            Use This Split — {formatIDR(grandTotal)}
+            Use This Split · {formatIDR(grandTotal)}
           </Button>
         </div>
       </SheetContent>

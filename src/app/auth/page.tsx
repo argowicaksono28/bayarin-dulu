@@ -74,7 +74,7 @@ export default function AuthPage() {
           >
             <Link href="/demo">
               <PlayCircle className="h-4 w-4" />
-              Try Demo — no account needed
+              Try Demo · No account needed
             </Link>
           </Button>
 

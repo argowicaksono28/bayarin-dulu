@@ -3,9 +3,7 @@
 import { useDemo } from "@/contexts/DemoContext"
 import { DemoGroupDetailTabs } from "./DemoGroupDetailTabs"
 import { formatIDR } from "@/lib/formatters"
-import { ChevronLeft } from "lucide-react"
 import Link from "next/link"
-import { redirect } from "next/navigation"
 
 interface Props {
   groupId: string
@@ -33,19 +31,11 @@ export function DemoGroupDetail({ groupId }: Props) {
       {/* Group header */}
       <div className="px-4 pt-4 pb-5">
         <div className="flex items-start justify-between">
-          <div className="flex items-center gap-3">
-            <Link
-              href="/demo"
-              className="flex items-center text-muted-foreground hover:text-foreground transition-colors mr-1"
-            >
-              <ChevronLeft className="h-5 w-5" />
-            </Link>
-            <div>
-              <h1 className="text-xl font-bold text-foreground">{group.name}</h1>
-              <p className="text-sm text-muted-foreground mt-0.5">
-                {members.length} members · {formatIDR(group.totalExpenses)} total
-              </p>
-            </div>
+          <div>
+            <h1 className="text-xl font-bold text-foreground">{group.name}</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              {members.length} members · {formatIDR(group.totalExpenses)} total
+            </p>
           </div>
 
           {/* Member avatar stack */}
