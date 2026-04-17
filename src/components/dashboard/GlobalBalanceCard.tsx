@@ -1,9 +1,10 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card } from "@/components/ui/card"
 import { formatIDR } from "@/lib/formatters"
 import { cn } from "@/lib/utils"
+import { TrendingUp, TrendingDown, Minus } from "lucide-react"
 import { Group } from "@/types"
 
 interface GlobalBalanceCardProps {
@@ -14,7 +15,7 @@ export function GlobalBalanceCard({ initialNetBalance = null }: GlobalBalanceCar
   const [netBalance, setNetBalance] = useState<number | null>(initialNetBalance)
 
   useEffect(() => {
-    if (initialNetBalance !== null) return // Skip fetching if initial balance is provided
+    if (initialNetBalance !== null) return
     fetch("/api/groups")
       .then((r) => r.json())
       .then((data) => {
@@ -25,27 +26,38 @@ export function GlobalBalanceCard({ initialNetBalance = null }: GlobalBalanceCar
       .catch(() => setNetBalance(0))
   }, [])
 
-  const isPositive = (netBalance ?? 0) >= 0
+  const isPositive = (netBalance ?? 0) > 0
+  const isNeutral  = netBalance === 0
 
   return (
-    <Card className="border border-border/50 bg-card rounded-xl">
-      <CardContent className="px-6 py-5">
-        <p className="text-sm text-muted-foreground mb-1">Your Net Balance</p>
-        {netBalance === null ? (
-          <div className="h-9 w-40 rounded bg-muted animate-pulse" />
-        ) : (
-          <p className={cn(
-            "text-3xl font-bold tracking-tight",
-            isPositive ? "text-primary" : "text-destructive"
+    <Card className="border border-border/50 bg-card rounded-xl p-5">
+      <p className="text-sm text-muted-foreground mb-1">Your net balance</p>
+
+      {netBalance === null ? (
+        <div className="h-8 w-44 rounded bg-muted animate-pulse" />
+      ) : (
+        <div className="flex items-center gap-2">
+          {isNeutral ? (
+            <Minus className="h-5 w-5 text-muted-foreground" />
+          ) : isPositive ? (
+            <TrendingUp className="h-5 w-5 text-primary" />
+          ) : (
+            <TrendingDown className="h-5 w-5 text-destructive" />
+          )}
+          <span className={cn(
+            "text-2xl font-bold",
+            isNeutral ? "text-muted-foreground" : isPositive ? "text-primary" : "text-destructive"
           )}>
-            {netBalance > 0 ? "+ " : netBalance < 0 ? "- " : ""}
-            {formatIDR(Math.abs(netBalance))}
-          </p>
-        )}
-        <p className="text-sm text-muted-foreground mt-1">
-          {netBalance !== null && netBalance > 0 ? "You lent overall" : netBalance !== null && netBalance < 0 ? "You owe overall" : "Settled"}
+            {isNeutral ? "All settled" : (isPositive ? "+ " : "- ") + formatIDR(Math.abs(netBalance))}
+          </span>
+        </div>
+      )}
+
+      {netBalance !== null && !isNeutral && (
+        <p className="text-xs text-muted-foreground mt-1">
+          {isPositive ? "Overall, others owe you" : "Overall, you owe others"}
         </p>
-      </CardContent>
+      )}
     </Card>
   )
 }
