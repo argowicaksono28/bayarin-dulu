@@ -391,13 +391,13 @@ export function DemoAddExpenseDialog({ groupId, open, onOpenChange }: Props) {
     <>
       {isDesktop ? (
         <Dialog open={open} onOpenChange={handleClose}>
-          <DialogContent className="max-w-lg bg-card border-border/50 p-0 flex flex-col overflow-hidden" style={{ maxHeight: "90vh" }}>
+          <DialogContent className="max-w-lg bg-card border-border/50 p-0 flex flex-col" style={{ maxHeight: "90vh", height: "90vh" }}>
             <DialogHeader className="px-6 pt-5 pb-3 shrink-0 border-b border-border/30">
               <DialogTitle>Add Expense</DialogTitle>
             </DialogHeader>
-            <ScrollArea className="flex-1 min-h-0">
-              <div className="px-6 py-4">{tabs}</div>
-            </ScrollArea>
+            <div className="flex-1 min-h-0 overflow-y-auto">
+              <div className="px-6 py-4 pb-8">{tabs}</div>
+            </div>
           </DialogContent>
         </Dialog>
       ) : (
