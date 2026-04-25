@@ -6,6 +6,7 @@ export async function middleware(request: NextRequest) {
 
   // Short-circuit for public routes — skip Supabase entirely
   if (
+    pathname === "/" ||
     pathname === "/auth/callback" ||
     pathname.startsWith("/view/") ||
     pathname.startsWith("/api/public/") ||
